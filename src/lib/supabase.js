@@ -86,21 +86,41 @@ export async function markStudentCheckedIn(receiptId) {
 export async function getAttendanceStats() {
   requireSupabase();
 
-  const [checkedResult, totalResult] = await Promise.all([
-    supabase
-      .from('students')
-      .select('receipt_id', { count: 'exact', head: true })
-      .eq('is_used', true),
-    supabase.from('students').select('receipt_id', { count: 'exact', head: true }),
+  const [checkedIn, total] = await Promise.all([
+    countStudents({ checkedIn: true, label: 'checked-in' }),
+    countStudents({ label: 'total' }),
   ]);
 
-  if (checkedResult.error) throw new Error(checkedResult.error.message || 'Unable to fetch checked-in count.');
-  if (totalResult.error) throw new Error(totalResult.error.message || 'Unable to fetch total count.');
-
   return {
-    checkedIn: checkedResult.count || 0,
-    total: totalResult.count || 0,
+    checkedIn,
+    total,
   };
+}
+
+async function countStudents({ checkedIn = null, label }) {
+  let headQuery = supabase
+    .from('students')
+    .select('receipt_id', { count: 'exact', head: true });
+
+  if (checkedIn !== null) headQuery = headQuery.eq('is_used', checkedIn);
+
+  const headResult = await headQuery;
+  if (!headResult.error && typeof headResult.count === 'number') return headResult.count;
+
+  let fallbackQuery = supabase
+    .from('students')
+    .select('receipt_id', { count: 'exact' })
+    .range(0, 0);
+
+  if (checkedIn !== null) fallbackQuery = fallbackQuery.eq('is_used', checkedIn);
+
+  const fallbackResult = await fallbackQuery;
+  if (fallbackResult.error) {
+    throw new Error(fallbackResult.error.message || `Unable to fetch ${label} count.`);
+  }
+
+  if (typeof fallbackResult.count === 'number') return fallbackResult.count;
+  return fallbackResult.data?.length || 0;
 }
 
 export async function resetAttendanceToZero() {
