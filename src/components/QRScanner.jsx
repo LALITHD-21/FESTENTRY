@@ -5,7 +5,6 @@ import { Camera, CameraOff, Loader2, Play, RotateCcw, ScanLine } from 'lucide-re
 
 const READER_ID = 'vivan-mobile-qr-reader';
 const COOLDOWN_MS = 2400;
-const AUTO_START_DELAY_MS = 500;
 const CAMERA_START_TIMEOUT_MS = 12000;
 
 const scannerConfig = {
@@ -157,6 +156,7 @@ export default function QRScanner({
   const onScanRef = useRef(onScan);
   const disabledRef = useRef(disabled);
   const lastScanRef = useRef({ value: '', time: 0 });
+  const shouldRecoverRef = useRef(false);
 
   const setScannerStatus = useCallback(
     (nextStatus, nextError = '') => {
@@ -246,6 +246,7 @@ export default function QRScanner({
       const token = startTokenRef.current + 1;
       startTokenRef.current = token;
       startingRef.current = true;
+      shouldRecoverRef.current = true;
       lastScanRef.current = { value: '', time: 0 };
       setScannerStatus('starting');
       await stopScanner();
@@ -335,10 +336,9 @@ export default function QRScanner({
 
   useEffect(() => {
     mountedRef.current = true;
-    const timer = window.setTimeout(() => startScanner(), AUTO_START_DELAY_MS);
 
     const handleVisibility = () => {
-      if (!document.hidden && scannerRef.current === null && statusRef.current === 'active') {
+      if (!document.hidden && shouldRecoverRef.current && scannerRef.current === null && statusRef.current === 'active') {
         startScanner({ force: true });
       }
     };
@@ -348,7 +348,6 @@ export default function QRScanner({
     return () => {
       mountedRef.current = false;
       startTokenRef.current += 1;
-      window.clearTimeout(timer);
       document.removeEventListener('visibilitychange', handleVisibility);
       stopScanner();
     };
@@ -369,7 +368,7 @@ export default function QRScanner({
           <ScanLine className="h-5 w-5 text-cyan-200" />
           <div>
             <p className="font-orbitron text-xs uppercase tracking-[0.28em] text-cyan-100">QR Scanner</p>
-            <p className="text-xs text-white/45">Tap Start Camera if permission was blocked</p>
+            <p className="text-xs text-white/45">Tap Start Camera and allow permission</p>
           </div>
         </div>
         <div className="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[10px] uppercase tracking-widest text-white/60">
@@ -436,7 +435,7 @@ export default function QRScanner({
           onClick={restartScanner}
         >
           <RotateCcw className="h-3.5 w-3.5" />
-          Restart Camera
+          Start / Restart
         </button>
         <div className="flex items-center justify-center gap-2 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-[10px] uppercase tracking-widest text-white/45">
           <Camera className="h-3.5 w-3.5 text-pink-200" />
