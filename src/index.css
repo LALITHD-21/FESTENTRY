@@ -230,21 +230,21 @@ button {
   line-height: 0.92;
   letter-spacing: 0;
   background:
-    linear-gradient(180deg, #ffffff 0%, #fff2a8 20%, #ffb72f 39%, #ff3fd4 60%, #00f5ff 82%, #ffffff 100%);
+    linear-gradient(180deg, #ffffff 0%, #ffe8ff 16%, #ff2eea 38%, #8b5cf6 58%, #00f5ff 82%, #dffcff 100%);
   background-clip: text;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
-  -webkit-text-stroke: clamp(0.55px, 0.07vw, 1.25px) rgba(255, 248, 216, 0.88);
+  -webkit-text-stroke: clamp(0.55px, 0.07vw, 1.25px) rgba(255, 232, 255, 0.9);
   filter:
-    drop-shadow(0 0 8px rgba(255, 255, 255, 0.72))
-    drop-shadow(0 0 16px rgba(247, 196, 92, 0.82))
-    drop-shadow(0 0 28px rgba(255, 0, 229, 0.58));
+    drop-shadow(0 0 8px rgba(255, 255, 255, 0.78))
+    drop-shadow(0 0 18px rgba(255, 0, 229, 0.86))
+    drop-shadow(0 0 30px rgba(0, 245, 255, 0.55));
   text-shadow:
     0 1px 0 rgba(28, 0, 36, 0.98),
     0 0 10px rgba(255, 255, 255, 0.9),
-    0 0 20px rgba(247, 196, 92, 0.86),
-    0 0 34px rgba(255, 0, 229, 0.72),
-    0 0 52px rgba(0, 245, 255, 0.36);
+    0 0 20px rgba(255, 0, 229, 0.92),
+    0 0 34px rgba(139, 92, 246, 0.78),
+    0 0 52px rgba(0, 245, 255, 0.5);
 }
 
 @keyframes scanLine {
