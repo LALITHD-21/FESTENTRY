@@ -230,19 +230,19 @@ button {
   line-height: 0.92;
   letter-spacing: 0;
   background:
-    linear-gradient(180deg, #ffffff 0%, #f8f5ff 28%, #d8c9ff 52%, #a78bfa 76%, #ffffff 100%);
+    linear-gradient(180deg, #ffffff 0%, #ffffff 25%, #f4f0ff 52%, #ddd1ff 78%, #ffffff 100%);
   background-clip: text;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
-  -webkit-text-stroke: clamp(0.5px, 0.06vw, 1.1px) rgba(255, 255, 255, 0.88);
+  -webkit-text-stroke: clamp(0.45px, 0.055vw, 1px) rgba(237, 230, 255, 0.92);
   filter:
-    drop-shadow(0 0 8px rgba(255, 255, 255, 0.6))
-    drop-shadow(0 0 18px rgba(168, 85, 247, 0.45));
+    drop-shadow(0 0 8px rgba(255, 255, 255, 0.7))
+    drop-shadow(0 0 16px rgba(196, 181, 253, 0.42));
   text-shadow:
     0 1px 0 rgba(26, 10, 46, 0.98),
-    0 0 8px rgba(255, 255, 255, 0.82),
-    0 0 18px rgba(196, 181, 253, 0.65),
-    0 0 32px rgba(126, 34, 206, 0.42);
+    0 0 8px rgba(255, 255, 255, 0.9),
+    0 0 16px rgba(221, 214, 254, 0.64),
+    0 0 28px rgba(126, 34, 206, 0.28);
 }
 
 @keyframes scanLine {

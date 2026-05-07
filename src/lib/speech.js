@@ -105,6 +105,36 @@ export function playWarningAnnouncementTone() {
   return true;
 }
 
+export function playFiveSecondWarningSiren({ delay = 1.55 } = {}) {
+  const ctx = getAudioContext();
+  if (!ctx) return false;
+
+  const duration = 5;
+  const startAt = ctx.currentTime + delay;
+  const endAt = startAt + duration;
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+
+  osc.type = 'sawtooth';
+  gain.gain.setValueAtTime(0.001, startAt);
+  gain.gain.linearRampToValueAtTime(0.14, startAt + 0.08);
+
+  for (let time = startAt; time < endAt; time += 0.5) {
+    osc.frequency.setValueAtTime(620, time);
+    osc.frequency.linearRampToValueAtTime(320, Math.min(time + 0.25, endAt));
+    osc.frequency.linearRampToValueAtTime(620, Math.min(time + 0.5, endAt));
+  }
+
+  gain.gain.setValueAtTime(0.14, endAt - 0.12);
+  gain.gain.linearRampToValueAtTime(0.001, endAt);
+
+  osc.connect(gain);
+  gain.connect(ctx.destination);
+  osc.start(startAt);
+  osc.stop(endAt + 0.02);
+  return true;
+}
+
 export function playWelcomeChime() {
   playTone({ frequency: 523, endFrequency: 659, duration: 0.22, type: 'sine', volume: 0.1 });
   playTone({ frequency: 784, endFrequency: 1046, duration: 0.28, delay: 0.16, type: 'triangle', volume: 0.11 });
@@ -155,7 +185,8 @@ export function announcePermitted(name) {
 export function announceAlreadyCheckedIn(name) {
   const studentName = cleanName(name);
   playWarningAnnouncementTone();
-  return speakLine(studentName ? `Access denied. Already scanned. ${studentName}.` : 'Access denied. Already scanned.', {
+  playFiveSecondWarningSiren();
+  return speakLine(studentName ? `Denied. Already scanned. ${studentName}.` : 'Denied. Already scanned.', {
     delay: 145,
     rate: 0.88,
     pitch: 0.7,

@@ -285,14 +285,14 @@ export default function ScannerDashboard() {
           await logScan(passId, 'duplicate');
           announceAlreadyCheckedIn(student.name);
           void notifyScan({
-            title: 'ACCESS DENIED',
+            title: 'DENIED',
             body: `${student.name} was already scanned.`,
             tag: `duplicate-${student.receipt_id || passId}`,
           });
           if (navigator.vibrate) navigator.vibrate([180, 90, 180, 90, 260]);
           setCounts((previous) => ({ ...previous, duplicate: previous.duplicate + 1 }));
           setDuplicateStudent(student);
-          addLog({ status: 'duplicate', passId, name: student.name, detail: student.section || 'Already checked in' });
+          addLog({ status: 'duplicate', passId, name: student.name, detail: student.section || 'Denied. Already scanned' });
           releaseLock(4200);
           return;
         }
