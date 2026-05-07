@@ -5,9 +5,9 @@ import { Camera, CameraOff, Loader2, Play, RotateCcw, ScanLine } from 'lucide-re
 
 const READER_ID = 'vivan-mobile-qr-reader';
 const COOLDOWN_MS = 2400;
-const CAMERA_PERMISSION_TIMEOUT_MS = 9000;
-const QR_START_TIMEOUT_MS = 9000;
-const HARD_START_TIMEOUT_MS = 15000;
+const CAMERA_TIMEOUT_MS = 9000;
+const QR_TIMEOUT_MS = 9000;
+const WATCHDOG_MS = 14000;
 
 const scannerConfig = {
   fps: 12,
@@ -25,7 +25,6 @@ function wait(ms) {
 
 function withTimeout(promise, ms, message) {
   let timer = null;
-
   const timeout = new Promise((_, reject) => {
     timer = window.setTimeout(() => {
       const error = new Error(message);
@@ -35,6 +34,10 @@ function withTimeout(promise, ms, message) {
   });
 
   return Promise.race([promise, timeout]).finally(() => window.clearTimeout(timer));
+}
+
+function stopStream(stream) {
+  stream?.getTracks?.().forEach((track) => track.stop());
 }
 
 function isPermissionError(error) {
@@ -61,7 +64,7 @@ function getCameraErrorMessage(error) {
   }
 
   if (isPermissionError(error)) {
-    return 'Camera permission is blocked. Open browser site settings, set Camera to Allow, then tap Start Camera.';
+    return 'Camera permission is blocked. Open site settings, set Camera to Allow, then tap Start Camera.';
   }
 
   if (name === 'NotFoundError' || /not found|no camera|requested device not found/i.test(message)) {
@@ -72,78 +75,35 @@ function getCameraErrorMessage(error) {
     return 'Camera is busy in another app or tab. Close other camera apps, then tap Start Camera.';
   }
 
-  if (name === 'OverconstrainedError' || /constraint/i.test(message)) {
-    return 'This camera mode is not supported. Tap Start Camera to try another mode.';
-  }
-
   return message || 'Unable to start camera. Tap Start Camera.';
 }
 
-async function getReadyReader(shouldContinue) {
-  for (let attempt = 0; attempt < 24; attempt += 1) {
-    if (!shouldContinue()) return null;
+async function createQrDetector() {
+  const Detector = window.BarcodeDetector;
+  if (!Detector) return null;
 
-    const reader = document.getElementById(READER_ID);
-    const rect = reader?.getBoundingClientRect();
-
-    if (reader && rect?.width > 120 && rect?.height > 120) {
-      reader.innerHTML = '';
-      return reader;
-    }
-
-    await wait(80);
+  if (Detector.getSupportedFormats) {
+    const formats = await Detector.getSupportedFormats().catch(() => []);
+    if (formats.length && !formats.includes('qr_code')) return null;
   }
 
-  throw new Error('Scanner view is not ready. Tap Start Camera again.');
+  return new Detector({ formats: ['qr_code'] });
 }
 
-function stopStream(stream) {
-  stream?.getTracks?.().forEach((track) => track.stop());
-}
-
-async function openBrowserCamera() {
-  const constraints = {
-    audio: false,
-    video: {
-      facingMode: { ideal: 'environment' },
-      width: { ideal: 1280 },
-      height: { ideal: 720 },
-    },
-  };
-
-  const stream = await withTimeout(
-    navigator.mediaDevices.getUserMedia(constraints),
-    CAMERA_PERMISSION_TIMEOUT_MS,
-    'Camera permission timed out.'
-  );
-
-  const [track] = stream.getVideoTracks();
-  if (!track) {
-    stopStream(stream);
-    throw new Error('Camera opened without a video track.');
-  }
-
-  const settings = track.getSettings?.() || {};
-  stopStream(stream);
-  await wait(220);
-
-  return settings.deviceId || null;
-}
-
-function waitForVideo(video) {
-  if (!video || video.readyState >= 2) return Promise.resolve();
-
-  return new Promise((resolve) => {
-    const timer = window.setTimeout(resolve, 1800);
-    video.addEventListener(
-      'canplay',
-      () => {
-        window.clearTimeout(timer);
-        resolve();
-      },
-      { once: true }
-    );
+async function getLibraryCameraConfig() {
+  const cameras = await withTimeout(Html5Qrcode.getCameras(), 2500, 'Camera list timed out.').catch(() => []);
+  const rearCamera = cameras.find((camera) => {
+    const label = String(camera.label || '').toLowerCase();
+    return label.includes('back') || label.includes('rear') || label.includes('environment') || label.includes('wide');
   });
+
+  if (rearCamera?.id) return rearCamera.id;
+  if (cameras[0]?.id) return cameras[0].id;
+  return { facingMode: { ideal: 'environment' } };
+}
+
+function normalizeCode(result) {
+  return String(result?.rawValue || result?.rawData || '').trim();
 }
 
 export default function QRScanner({
@@ -155,7 +115,12 @@ export default function QRScanner({
 }) {
   const [status, setStatus] = useState('idle');
   const [error, setError] = useState('');
+  const [engine, setEngine] = useState('native');
+  const videoRef = useRef(null);
+  const streamRef = useRef(null);
   const scannerRef = useRef(null);
+  const detectorRef = useRef(null);
+  const scanTimerRef = useRef(null);
   const mountedRef = useRef(false);
   const startingRef = useRef(false);
   const startTokenRef = useRef(0);
@@ -183,69 +148,143 @@ export default function QRScanner({
     disabledRef.current = disabled;
   }, [disabled]);
 
-  const stopScanner = useCallback(async () => {
+  const consumeScan = useCallback((decodedText) => {
+    const value = String(decodedText || '').trim();
+    if (!value || disabledRef.current) return;
+
+    const now = Date.now();
+    if (lastScanRef.current.value === value && now - lastScanRef.current.time < COOLDOWN_MS) return;
+
+    lastScanRef.current = { value, time: now };
+    onScanRef.current?.(value);
+  }, []);
+
+  const stopNativeCamera = useCallback(() => {
+    window.clearTimeout(scanTimerRef.current);
+    scanTimerRef.current = null;
+    detectorRef.current = null;
+    stopStream(streamRef.current);
+    streamRef.current = null;
+
+    const video = videoRef.current;
+    if (video) {
+      video.pause();
+      video.srcObject = null;
+    }
+  }, []);
+
+  const stopLibraryScanner = useCallback(async () => {
     const scanner = scannerRef.current;
     scannerRef.current = null;
-
     if (!scanner) return;
 
     try {
-      if (scanner.isScanning) await scanner.stop();
+      if (scanner.isScanning) {
+        await withTimeout(scanner.stop(), 1200, 'Stop scanner timed out.');
+      }
     } catch {
-      // Scanner may already be stopped.
+      // The scanner can already be stopped or stuck mid-start.
     }
 
     try {
       scanner.clear();
     } catch {
-      // Reader DOM can disappear during route changes or hot reload.
+      // The reader element can be replaced during retry.
     }
   }, []);
 
-  const startQrEngine = useCallback(async (cameraId, handleSuccess) => {
+  const stopEverything = useCallback(async () => {
+    stopNativeCamera();
+    await stopLibraryScanner();
+  }, [stopLibraryScanner, stopNativeCamera]);
+
+  const runNativeLoop = useCallback(() => {
+    const tick = async () => {
+      const video = videoRef.current;
+      const detector = detectorRef.current;
+
+      if (!mountedRef.current || statusRef.current !== 'active' || !video || !detector) return;
+
+      try {
+        if (video.readyState >= 2) {
+          const results = await detector.detect(video);
+          const code = normalizeCode(results?.[0]);
+          if (code) consumeScan(code);
+        }
+      } catch {
+        // Detection failures are transient while frames are changing.
+      }
+
+      scanTimerRef.current = window.setTimeout(tick, 140);
+    };
+
+    tick();
+  }, [consumeScan]);
+
+  const startNativeCamera = useCallback(async () => {
+    const detector = await createQrDetector();
+    if (!detector) return false;
+
+    const stream = await withTimeout(
+      navigator.mediaDevices.getUserMedia({
+        audio: false,
+        video: {
+          facingMode: { ideal: 'environment' },
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+        },
+      }),
+      CAMERA_TIMEOUT_MS,
+      'Camera permission timed out.'
+    );
+
+    const video = videoRef.current;
+    if (!video) {
+      stopStream(stream);
+      throw new Error('Camera preview is not ready.');
+    }
+
+    setEngine('native');
+    detectorRef.current = detector;
+    streamRef.current = stream;
+    video.srcObject = stream;
+    video.setAttribute('playsinline', 'true');
+    video.setAttribute('webkit-playsinline', 'true');
+    video.muted = true;
+
+    await withTimeout(video.play(), 4000, 'Camera preview could not play.').catch(() => {});
+    setScannerStatus('active');
+    runNativeLoop();
+    return true;
+  }, [runNativeLoop, setScannerStatus]);
+
+  const startLibraryScanner = useCallback(async () => {
+    setEngine('library');
     const reader = document.getElementById(READER_ID);
-    if (reader) reader.innerHTML = '';
+    if (!reader) throw new Error('Scanner view is not ready.');
+    reader.innerHTML = '';
 
     const scanner = new Html5Qrcode(READER_ID, false);
     scannerRef.current = scanner;
+    const cameraConfig = await getLibraryCameraConfig();
 
-    const cameraConfig = cameraId ? { deviceId: { exact: cameraId } } : { facingMode: { ideal: 'environment' } };
+    await withTimeout(
+      scanner.start(cameraConfig, scannerConfig, consumeScan, () => {}),
+      QR_TIMEOUT_MS,
+      'QR camera start timed out.'
+    );
 
-    try {
-      await withTimeout(
-        scanner.start(cameraConfig, scannerConfig, handleSuccess, () => {}),
-        QR_START_TIMEOUT_MS,
-        'QR camera start timed out.'
-      );
-
-      const video = document.querySelector(`#${READER_ID} video`);
-      if (video) {
-        video.setAttribute('playsinline', 'true');
-        video.setAttribute('webkit-playsinline', 'true');
-        video.setAttribute('muted', 'true');
-        video.setAttribute('autoplay', 'true');
-        await waitForVideo(video);
-      }
-
-      return scanner;
-    } catch (startError) {
-      if (scannerRef.current === scanner) scannerRef.current = null;
-
-      try {
-        if (scanner.isScanning) await scanner.stop();
-      } catch {
-        // Scanner may not have reached scanning state.
-      }
-
-      try {
-        scanner.clear();
-      } catch {
-        // Reader DOM can be cleared by a retry.
-      }
-
-      throw startError;
+    const video = document.querySelector(`#${READER_ID} video`);
+    if (video) {
+      video.setAttribute('playsinline', 'true');
+      video.setAttribute('webkit-playsinline', 'true');
+      video.setAttribute('muted', 'true');
+      video.setAttribute('autoplay', 'true');
     }
-  }, []);
+
+    setScannerStatus('active');
+    return true;
+  }, [consumeScan, setScannerStatus]);
 
   const startScanner = useCallback(
     async ({ force = false } = {}) => {
@@ -258,16 +297,16 @@ export default function QRScanner({
       shouldRecoverRef.current = true;
       lastScanRef.current = { value: '', time: 0 };
       setScannerStatus('starting');
-      await stopScanner();
+      await stopEverything();
 
-      const watchdog = window.setTimeout(async () => {
+      const watchdog = window.setTimeout(() => {
         if (!mountedRef.current || token !== startTokenRef.current || statusRef.current !== 'starting') return;
 
         startTokenRef.current += 1;
         startingRef.current = false;
-        await stopScanner();
         setScannerStatus('error', 'Camera is still opening. Tap Start Camera again and press Allow immediately.');
-      }, HARD_START_TIMEOUT_MS);
+        stopEverything();
+      }, WATCHDOG_MS);
 
       try {
         await wait(120);
@@ -281,40 +320,22 @@ export default function QRScanner({
           throw new Error('Open the HTTPS scanner link on mobile to allow camera access.');
         }
 
-        await getReadyReader(() => mountedRef.current && token === startTokenRef.current);
+        const nativeStarted = await startNativeCamera();
         if (!mountedRef.current || token !== startTokenRef.current) return;
 
-        const handleSuccess = (decodedText) => {
-          const value = decodedText.trim();
-          if (!value || disabledRef.current) return;
-
-          const now = Date.now();
-          if (lastScanRef.current.value === value && now - lastScanRef.current.time < COOLDOWN_MS) return;
-
-          lastScanRef.current = { value, time: now };
-          onScanRef.current?.(value);
-        };
-
-        const cameraId = await openBrowserCamera();
-        if (!mountedRef.current || token !== startTokenRef.current) return;
-
-        await startQrEngine(cameraId, handleSuccess);
-        if (!mountedRef.current || token !== startTokenRef.current) {
-          await stopScanner();
-          return;
+        if (!nativeStarted) {
+          await startLibraryScanner();
         }
-
-        setScannerStatus('active');
       } catch (scannerError) {
         if (!mountedRef.current || token !== startTokenRef.current) return;
-        await stopScanner();
         setScannerStatus('error', getCameraErrorMessage(scannerError));
+        stopEverything();
       } finally {
         window.clearTimeout(watchdog);
         if (token === startTokenRef.current) startingRef.current = false;
       }
     },
-    [setScannerStatus, startQrEngine, stopScanner]
+    [setScannerStatus, startLibraryScanner, startNativeCamera, stopEverything]
   );
 
   const restartScanner = useCallback(() => {
@@ -325,7 +346,7 @@ export default function QRScanner({
     mountedRef.current = true;
 
     const handleVisibility = () => {
-      if (!document.hidden && shouldRecoverRef.current && scannerRef.current === null && statusRef.current === 'active') {
+      if (!document.hidden && shouldRecoverRef.current && statusRef.current === 'active' && !streamRef.current && !scannerRef.current) {
         startScanner({ force: true });
       }
     };
@@ -336,9 +357,9 @@ export default function QRScanner({
       mountedRef.current = false;
       startTokenRef.current += 1;
       document.removeEventListener('visibilitychange', handleVisibility);
-      stopScanner();
+      stopEverything();
     };
-  }, [startScanner, stopScanner]);
+  }, [startScanner, stopEverything]);
 
   useEffect(() => {
     if (restartSignal > 0) restartScanner();
@@ -365,7 +386,13 @@ export default function QRScanner({
       </div>
 
       <div className="relative overflow-hidden rounded-lg border border-white/10 bg-black">
-        <div id={READER_ID} className="min-h-[320px] w-full" />
+        <video
+          ref={videoRef}
+          className={`h-[320px] w-full object-cover ${engine === 'native' ? 'block' : 'hidden'}`}
+          muted
+          playsInline
+        />
+        <div id={READER_ID} className={`${engine === 'library' ? 'block' : 'hidden'} min-h-[320px] w-full`} />
 
         {status === 'active' && (
           <>
