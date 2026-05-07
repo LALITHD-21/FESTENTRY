@@ -1,0 +1,241 @@
+@import "tailwindcss";
+
+:root {
+  --neon-cyan: #00f5ff;
+  --neon-pink: #ff00e5;
+  --neon-purple: #8b5cf6;
+  --neon-gold: #f7c45c;
+  --danger-red: #ff3366;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  background: #05030a;
+}
+
+body {
+  min-height: 100vh;
+  margin: 0;
+  overflow-x: hidden;
+  background: #05030a;
+  color: #fff;
+  font-family: "Inter", "Space Grotesk", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+.font-orbitron {
+  font-family: "Orbitron", monospace;
+}
+
+.text-gradient-cyan-pink {
+  background: linear-gradient(135deg, var(--neon-cyan), #fff 38%, var(--neon-pink), var(--neon-purple));
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 0 22px rgba(255, 0, 229, 0.24));
+}
+
+.text-glow-cyan {
+  color: var(--neon-cyan);
+  text-shadow:
+    0 0 8px rgba(0, 245, 255, 0.85),
+    0 0 24px rgba(0, 245, 255, 0.42),
+    0 0 44px rgba(0, 245, 255, 0.18);
+}
+
+.text-glow-red {
+  color: #fecdd3;
+  text-shadow:
+    0 0 8px rgba(255, 51, 102, 0.9),
+    0 0 24px rgba(255, 51, 102, 0.5);
+}
+
+.scanner-page {
+  isolation: isolate;
+}
+
+.ambient-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 18% 12%, rgba(0, 245, 255, 0.22), transparent 34%),
+    radial-gradient(circle at 86% 18%, rgba(255, 0, 229, 0.2), transparent 34%),
+    radial-gradient(circle at 50% 100%, rgba(139, 92, 246, 0.28), transparent 38%),
+    linear-gradient(160deg, #05030a, #0d0319 48%, #020105);
+}
+
+.ambient-layer::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(0, 245, 255, 0.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 0, 229, 0.035) 1px, transparent 1px);
+  background-size: 52px 52px;
+  mask-image: linear-gradient(to bottom, #000, transparent 85%);
+}
+
+.scanner-card::before {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  z-index: -1;
+  border-radius: 8px;
+  background: conic-gradient(from 0deg, var(--neon-cyan), var(--neon-pink), var(--neon-purple), var(--neon-cyan));
+  opacity: 0.34;
+  filter: blur(18px);
+  animation: spin 6s linear infinite;
+}
+
+.scanner-grid {
+  background-image:
+    linear-gradient(rgba(0, 245, 255, 0.1) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 0, 229, 0.08) 1px, transparent 1px);
+  background-size: 28px 28px;
+  mix-blend-mode: screen;
+}
+
+.scan-bar {
+  animation: scanLine 2.35s ease-in-out infinite;
+}
+
+#vivan-mobile-qr-reader {
+  border: 0 !important;
+  overflow: hidden !important;
+}
+
+#vivan-mobile-qr-reader video {
+  width: 100% !important;
+  min-height: 320px !important;
+  object-fit: cover !important;
+}
+
+#vivan-mobile-qr-reader__dashboard,
+#vivan-mobile-qr-reader__scan_region img {
+  display: none !important;
+}
+
+.counter-pop {
+  animation: counterPop 0.42s ease-out;
+}
+
+.danger-grid {
+  background:
+    repeating-linear-gradient(0deg, rgba(255, 51, 102, 0.05) 0 1px, transparent 1px 10px),
+    repeating-linear-gradient(90deg, rgba(255, 51, 102, 0.05) 0 1px, transparent 1px 18px);
+}
+
+.warning-bar {
+  background-size: 220% 100%;
+  animation: gradientSlide 1.5s linear infinite;
+}
+
+.poster-page {
+  background: #000;
+}
+
+.poster-frame {
+  width: min(100vw, calc(100vh * 16 / 9));
+  height: min(100vh, calc(100vw * 9 / 16));
+  max-width: 100vw;
+  max-height: 100vh;
+  box-shadow: none;
+}
+
+.poster-frame::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.1),
+    inset 0 -60px 130px rgba(0, 0, 0, 0.18);
+}
+
+.poster-photo {
+  pointer-events: none;
+}
+
+.poster-photo-inner {
+  border: clamp(3px, 0.32vw, 6px) solid #fff;
+  box-shadow: 0 0 45px rgba(255, 0, 229, 0.65);
+}
+
+.poster-name {
+  line-height: 0.96;
+  letter-spacing: 0;
+  color: var(--neon-gold);
+  text-shadow:
+    0 2px 0 rgba(75, 32, 0, 0.95),
+    0 0 16px rgba(247, 196, 92, 0.78),
+    0 0 32px rgba(255, 0, 229, 0.25);
+}
+
+@keyframes scanLine {
+  0% { transform: translateY(0); opacity: 0; }
+  10% { opacity: 1; }
+  52% { opacity: 1; }
+  100% { transform: translateY(320px); opacity: 0; }
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes counterPop {
+  0% { transform: scale(1); }
+  45% { transform: scale(1.22); }
+  100% { transform: scale(1); }
+}
+
+@keyframes gradientSlide {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 220% 50%; }
+}
+
+::-webkit-scrollbar {
+  width: 7px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(var(--neon-cyan), var(--neon-pink));
+  border-radius: 999px;
+}
+
+@media (max-width: 640px) {
+  #vivan-mobile-qr-reader video {
+    min-height: 300px !important;
+  }
+
+  @keyframes scanLine {
+    0% { transform: translateY(0); opacity: 0; }
+    10% { opacity: 1; }
+    52% { opacity: 1; }
+    100% { transform: translateY(300px); opacity: 0; }
+  }
+}
