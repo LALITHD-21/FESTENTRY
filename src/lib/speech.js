@@ -105,11 +105,11 @@ export function playWarningAnnouncementTone() {
   return true;
 }
 
-export function playFiveSecondWarningSiren({ delay = 1.55 } = {}) {
+export function playThreeSecondWarningSiren({ delay = 2.05 } = {}) {
   const ctx = getAudioContext();
   if (!ctx) return false;
 
-  const duration = 5;
+  const duration = 3;
   const startAt = ctx.currentTime + delay;
   const endAt = startAt + duration;
   const osc = ctx.createOscillator();
@@ -183,13 +183,12 @@ export function announcePermitted(name) {
 }
 
 export function announceAlreadyCheckedIn(name) {
-  const studentName = cleanName(name);
   playWarningAnnouncementTone();
-  playFiveSecondWarningSiren();
-  return speakLine(studentName ? `Denied. Already scanned. ${studentName}.` : 'Denied. Already scanned.', {
-    delay: 145,
-    rate: 0.88,
-    pitch: 0.7,
+  playThreeSecondWarningSiren();
+  return speakLine('Denied. Already scanned.', {
+    delay: 130,
+    rate: 0.82,
+    pitch: 0.95,
     volume: 1,
   });
 }

@@ -225,24 +225,24 @@ button {
 }
 
 .poster-name {
-  font-family: "Cinzel", "Orbitron", "Times New Roman", serif;
+  font-family: "Playfair Display", "Cinzel", "Times New Roman", serif;
   font-weight: 900;
-  line-height: 0.92;
+  line-height: 0.94;
   letter-spacing: 0;
   background:
-    linear-gradient(180deg, #ffffff 0%, #ffffff 25%, #f4f0ff 52%, #ddd1ff 78%, #ffffff 100%);
+    linear-gradient(180deg, #ffffff 0%, #fbf7ff 34%, #eadfff 63%, #c9b7ff 100%);
   background-clip: text;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
-  -webkit-text-stroke: clamp(0.45px, 0.055vw, 1px) rgba(237, 230, 255, 0.92);
+  -webkit-text-stroke: clamp(0.35px, 0.045vw, 0.9px) rgba(109, 40, 217, 0.62);
   filter:
-    drop-shadow(0 0 8px rgba(255, 255, 255, 0.7))
-    drop-shadow(0 0 16px rgba(196, 181, 253, 0.42));
+    drop-shadow(0 0 7px rgba(255, 255, 255, 0.56))
+    drop-shadow(0 0 15px rgba(124, 58, 237, 0.38));
   text-shadow:
-    0 1px 0 rgba(26, 10, 46, 0.98),
-    0 0 8px rgba(255, 255, 255, 0.9),
-    0 0 16px rgba(221, 214, 254, 0.64),
-    0 0 28px rgba(126, 34, 206, 0.28);
+    0 1px 0 rgba(22, 6, 38, 0.98),
+    0 0 7px rgba(255, 255, 255, 0.78),
+    0 0 16px rgba(221, 214, 254, 0.52),
+    0 0 26px rgba(88, 28, 135, 0.34);
 }
 
 @keyframes scanLine {
