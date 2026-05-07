@@ -131,9 +131,47 @@ button {
   object-fit: cover !important;
 }
 
-#vivan-mobile-qr-reader__dashboard,
 #vivan-mobile-qr-reader__scan_region img {
   display: none !important;
+}
+
+#vivan-mobile-qr-reader {
+  color: rgba(255, 255, 255, 0.8) !important;
+  font-family: inherit !important;
+}
+
+#vivan-mobile-qr-reader button,
+#vivan-mobile-qr-reader select {
+  min-height: 38px !important;
+  border-radius: 8px !important;
+  border: 1px solid rgba(0, 245, 255, 0.28) !important;
+  background: rgba(0, 245, 255, 0.1) !important;
+  color: #cffafe !important;
+  font-family: "Orbitron", monospace !important;
+  font-size: 10px !important;
+  letter-spacing: 0.08em !important;
+  text-transform: uppercase !important;
+}
+
+#vivan-mobile-qr-reader select {
+  width: min(100%, 260px) !important;
+  background-color: #080511 !important;
+}
+
+#vivan-mobile-qr-reader__dashboard,
+#vivan-mobile-qr-reader__dashboard_section {
+  border: 0 !important;
+  background: rgba(255, 255, 255, 0.035) !important;
+}
+
+#vivan-mobile-qr-reader__dashboard_section {
+  padding: 10px !important;
+}
+
+#vivan-mobile-qr-reader__header_message {
+  border-radius: 8px !important;
+  border: 1px solid rgba(255, 80, 130, 0.25) !important;
+  color: #fecdd3 !important;
 }
 
 .counter-pop {
