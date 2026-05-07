@@ -248,8 +248,8 @@ function PosterName({ name }) {
         ref={textRef}
         className="poster-name block max-w-full whitespace-nowrap text-center"
         style={{ fontSize: `${fontSize}px` }}
-        initial={{ filter: 'blur(12px) drop-shadow(0 0 8px rgba(221,214,254,0.45))' }}
-        animate={{ filter: 'blur(0px) drop-shadow(0 0 10px rgba(255,255,255,0.78)) drop-shadow(0 0 18px rgba(124,58,237,0.48))' }}
+        initial={{ filter: 'blur(12px) drop-shadow(0 0 8px rgba(255,255,255,0.5))' }}
+        animate={{ filter: 'blur(0px) drop-shadow(0 0 10px rgba(255,255,255,0.82)) drop-shadow(0 0 16px rgba(124,58,237,0.35))' }}
         transition={{ delay: 0.35, duration: 0.7 }}
       >
         {displayName}

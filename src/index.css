@@ -229,20 +229,17 @@ button {
   font-weight: 900;
   line-height: 0.94;
   letter-spacing: 0;
-  background:
-    linear-gradient(180deg, #ffffff 0%, #fbf7ff 34%, #eadfff 63%, #c9b7ff 100%);
-  background-clip: text;
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
+  color: #fff;
+  -webkit-text-fill-color: #fff;
   -webkit-text-stroke: clamp(0.35px, 0.045vw, 0.9px) rgba(109, 40, 217, 0.62);
   filter:
-    drop-shadow(0 0 7px rgba(255, 255, 255, 0.56))
-    drop-shadow(0 0 15px rgba(124, 58, 237, 0.38));
+    drop-shadow(0 0 7px rgba(255, 255, 255, 0.62))
+    drop-shadow(0 0 14px rgba(124, 58, 237, 0.32));
   text-shadow:
     0 1px 0 rgba(22, 6, 38, 0.98),
-    0 0 7px rgba(255, 255, 255, 0.78),
-    0 0 16px rgba(221, 214, 254, 0.52),
-    0 0 26px rgba(88, 28, 135, 0.34);
+    0 0 8px rgba(255, 255, 255, 0.86),
+    0 0 16px rgba(221, 214, 254, 0.42),
+    0 0 24px rgba(88, 28, 135, 0.24);
 }
 
 @keyframes scanLine {
