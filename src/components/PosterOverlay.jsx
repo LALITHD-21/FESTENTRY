@@ -209,7 +209,7 @@ function PosterName({ name }) {
       const rect = slot.getBoundingClientRect();
       if (!rect.width || !rect.height) return;
 
-      const maxSize = Math.min(rect.height * 0.9, rect.width * 0.18, 82);
+      const maxSize = Math.min(rect.height * 0.74, rect.width * 0.14, 78);
       let low = 14;
       let high = Math.max(18, maxSize);
       let best = low;
@@ -246,10 +246,10 @@ function PosterName({ name }) {
     <div ref={slotRef} className="flex h-full w-full items-center justify-center overflow-hidden px-[1.5%] py-[0.8%]">
       <motion.span
         ref={textRef}
-        className="poster-name block max-w-full whitespace-nowrap text-center"
+        className="poster-name block max-w-full whitespace-nowrap text-center uppercase"
         style={{ fontSize: `${fontSize}px` }}
-        initial={{ filter: 'blur(12px) drop-shadow(0 0 8px rgba(0,245,255,0.5))' }}
-        animate={{ filter: 'blur(0px) drop-shadow(0 0 16px rgba(255,0,229,0.95)) drop-shadow(0 0 28px rgba(0,245,255,0.72))' }}
+        initial={{ filter: 'blur(12px) drop-shadow(0 0 8px rgba(247,196,92,0.45))' }}
+        animate={{ filter: 'blur(0px) drop-shadow(0 0 12px rgba(247,196,92,0.9)) drop-shadow(0 0 24px rgba(255,0,229,0.68)) drop-shadow(0 0 32px rgba(0,245,255,0.5))' }}
         transition={{ delay: 0.35, duration: 0.7 }}
       >
         {displayName}

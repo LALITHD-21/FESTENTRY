@@ -225,24 +225,26 @@ button {
 }
 
 .poster-name {
-  font-family: "Lobster", "Brush Script MT", "Segoe Script", cursive;
-  font-weight: 400;
-  line-height: 1;
+  font-family: "Cinzel", "Orbitron", "Times New Roman", serif;
+  font-weight: 900;
+  line-height: 0.92;
   letter-spacing: 0;
-  background: linear-gradient(100deg, #ffffff 0%, #9ffcff 22%, #00f5ff 42%, #ff4de8 68%, #fff1a8 100%);
+  background:
+    linear-gradient(180deg, #ffffff 0%, #fff2a8 20%, #ffb72f 39%, #ff3fd4 60%, #00f5ff 82%, #ffffff 100%);
   background-clip: text;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
-  -webkit-text-stroke: clamp(0.35px, 0.055vw, 1px) rgba(255, 255, 255, 0.74);
+  -webkit-text-stroke: clamp(0.55px, 0.07vw, 1.25px) rgba(255, 248, 216, 0.88);
   filter:
-    drop-shadow(0 0 9px rgba(0, 245, 255, 0.95))
-    drop-shadow(0 0 20px rgba(255, 0, 229, 0.8));
+    drop-shadow(0 0 8px rgba(255, 255, 255, 0.72))
+    drop-shadow(0 0 16px rgba(247, 196, 92, 0.82))
+    drop-shadow(0 0 28px rgba(255, 0, 229, 0.58));
   text-shadow:
-    0 0 4px rgba(255, 255, 255, 0.98),
-    0 0 12px rgba(0, 245, 255, 0.95),
-    0 0 28px rgba(255, 0, 229, 0.9),
-    0 0 46px rgba(139, 92, 246, 0.62),
-    0 2px 0 rgba(18, 0, 35, 0.95);
+    0 1px 0 rgba(28, 0, 36, 0.98),
+    0 0 10px rgba(255, 255, 255, 0.9),
+    0 0 20px rgba(247, 196, 92, 0.86),
+    0 0 34px rgba(255, 0, 229, 0.72),
+    0 0 52px rgba(0, 245, 255, 0.36);
 }
 
 @keyframes scanLine {
