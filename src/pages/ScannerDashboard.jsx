@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Clock3, Radio, RefreshCcw, RotateCcw, Satellite, Sparkles, Trash2, Wifi, Zap } from 'lucide-react';
+import { Clock3, Radio, RefreshCcw, RotateCcw, Satellite, Sparkles, Trash2, Wifi } from 'lucide-react';
 import AttendanceCard from '../components/AttendanceCard';
 import DuplicateModal from '../components/DuplicateModal';
 import QRScanner from '../components/QRScanner';
@@ -9,8 +9,9 @@ import SuccessToast from '../components/SuccessToast';
 import scannerSound from '../assets/scanner.mp3';
 import successSound from '../assets/success.mp3';
 import warningSound from '../assets/warning.mp3';
-import { speakWelcome } from '../lib/speech';
+import { announceAlreadyCheckedIn, announcePermitted, notifyScan } from '../lib/speech';
 import {
+  clearScanLogs,
   fetchStudentByPassId,
   fetchScanLogs,
   isSupabaseConfigured,
@@ -65,6 +66,7 @@ export default function ScannerDashboard() {
   const [scannerStatus, setScannerStatus] = useState('idle');
   const [lastSuccessStudent, setLastSuccessStudent] = useState(null);
   const [resettingAttendance, setResettingAttendance] = useState(false);
+  const [clearingLogs, setClearingLogs] = useState(false);
   const lockRef = useRef(false);
   const unlockTimer = useRef(null);
 
@@ -155,6 +157,39 @@ export default function ScannerDashboard() {
     });
     setScannerResetKey((key) => key + 1);
   }, [unlockNow]);
+
+  const clearAllScanLogs = useCallback(async () => {
+    if (clearingLogs) return;
+
+    const confirmed = window.confirm('Clear all scan logs? Attendance status will stay unchanged.');
+    if (!confirmed) return;
+
+    setClearingLogs(true);
+    unlockNow();
+
+    try {
+      if (!isSupabaseConfigured) {
+        throw new Error('Supabase is not configured.');
+      }
+
+      await clearScanLogs();
+      setLogs([]);
+      setCounts({ total: 0, success: 0, duplicate: 0, invalid: 0 });
+      setToast({
+        type: 'success',
+        title: 'Scan Logs Cleared',
+        message: 'Logs and local scan counters are now fresh.',
+      });
+    } catch (error) {
+      setToast({
+        type: 'invalid',
+        title: 'Clear Failed',
+        message: error?.message || 'Unable to clear scan logs right now.',
+      });
+    } finally {
+      setClearingLogs(false);
+    }
+  }, [clearingLogs, unlockNow]);
 
   const resetAttendanceCount = useCallback(async () => {
     if (resettingAttendance) return;
@@ -249,6 +284,12 @@ export default function ScannerDashboard() {
         if (student.checked_in) {
           await logScan(passId, 'duplicate');
           playAudio(warningSound, 'error');
+          announceAlreadyCheckedIn(student.name);
+          void notifyScan({
+            title: 'ALREADY CHECKED-IN',
+            body: `${student.name} has already entered.`,
+            tag: `duplicate-${student.receipt_id || passId}`,
+          });
           if (navigator.vibrate) navigator.vibrate([180, 90, 180, 90, 260]);
           setCounts((previous) => ({ ...previous, duplicate: previous.duplicate + 1 }));
           setDuplicateStudent(student);
@@ -261,7 +302,12 @@ export default function ScannerDashboard() {
         await publishLiveDisplay(checkedInStudent);
         await logScan(passId, 'success');
         playAudio(successSound);
-        window.setTimeout(() => speakWelcome(checkedInStudent.name), 420);
+        window.setTimeout(() => announcePermitted(checkedInStudent.name), 320);
+        void notifyScan({
+          title: 'PERMITTED',
+          body: `${checkedInStudent.name} checked in successfully.`,
+          tag: `success-${checkedInStudent.receipt_id || passId}`,
+        });
         setLastSuccessStudent(checkedInStudent);
         setCounts((previous) => ({ ...previous, success: previous.success + 1 }));
         setRefreshKey((key) => key + 1);
@@ -335,6 +381,7 @@ export default function ScannerDashboard() {
           <ActionButton icon={RefreshCcw} label="Fresh Scan" onClick={startFreshScan} />
           <ActionButton icon={Satellite} label="Quick Sync" onClick={quickSyncWelcome} />
           <ActionButton icon={RotateCcw} label="Restart Cam" onClick={() => setScannerRestartKey((key) => key + 1)} />
+          <ActionButton icon={Trash2} label={clearingLogs ? 'Clearing' : 'Clear Logs'} onClick={clearAllScanLogs} disabled={clearingLogs} />
           <ActionButton icon={Trash2} label="Reset Session" onClick={resetSession} danger />
         </section>
 
@@ -361,16 +408,17 @@ export default function ScannerDashboard() {
   );
 }
 
-function ActionButton({ icon: Icon, label, onClick, danger = false }) {
+function ActionButton({ icon: Icon, label, onClick, danger = false, disabled = false }) {
   return (
     <button
       type="button"
       onClick={onClick}
+      disabled={disabled}
       className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border px-3 py-2 font-orbitron text-[10px] uppercase tracking-widest backdrop-blur-xl transition active:scale-[0.98] ${
         danger
           ? 'border-red-300/25 bg-red-500/10 text-red-100'
           : 'border-cyan-300/25 bg-cyan-400/10 text-cyan-100'
-      }`}
+      } ${disabled ? 'cursor-wait opacity-55' : ''}`}
     >
       <Icon className="h-3.5 w-3.5" />
       {label}

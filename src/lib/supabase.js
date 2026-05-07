@@ -192,6 +192,18 @@ export async function fetchScanLogs(limit = 40) {
   });
 }
 
+export async function clearScanLogs() {
+  requireSupabase();
+
+  const { error } = await supabase
+    .from('scan_logs')
+    .delete()
+    .gte('id', 0);
+
+  if (error) throw new Error(error.message || 'Unable to clear scan logs.');
+  return true;
+}
+
 export async function publishLiveDisplay(student) {
   if (!supabase || !student) return false;
 
@@ -293,7 +305,7 @@ export function subscribeToScanLogs(onChange) {
     .channel(`scan-logs-${Date.now()}`)
     .on(
       'postgres_changes',
-      { event: 'INSERT', schema: 'public', table: 'scan_logs' },
+      { event: '*', schema: 'public', table: 'scan_logs' },
       () => onChange?.()
     )
     .subscribe();
