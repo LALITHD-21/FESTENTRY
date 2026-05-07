@@ -4,8 +4,8 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "dev:https": "set VITE_HTTPS=true&& vite",
+    "dev": "vite --host 0.0.0.0 --port 5173",
+    "dev:https": "set VITE_HTTPS=true&& vite --host 0.0.0.0 --port 5174",
     "build": "vite build",
     "preview": "vite preview"
   },
