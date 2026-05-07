@@ -5,7 +5,9 @@ import { Camera, CameraOff, Loader2, Play, RotateCcw, ScanLine } from 'lucide-re
 
 const READER_ID = 'vivan-mobile-qr-reader';
 const COOLDOWN_MS = 2400;
-const CAMERA_START_TIMEOUT_MS = 12000;
+const CAMERA_PERMISSION_TIMEOUT_MS = 9000;
+const QR_START_TIMEOUT_MS = 9000;
+const HARD_START_TIMEOUT_MS = 15000;
 
 const scannerConfig = {
   fps: 12,
@@ -16,13 +18,6 @@ const scannerConfig = {
   aspectRatio: 1,
   disableFlip: false,
 };
-
-const baseCameraCandidates = [
-  { facingMode: { exact: 'environment' } },
-  { facingMode: 'environment' },
-  { facingMode: { ideal: 'environment' } },
-  { facingMode: 'user' },
-];
 
 function wait(ms) {
   return new Promise((resolve) => window.setTimeout(resolve, ms));
@@ -62,7 +57,7 @@ function getCameraErrorMessage(error) {
   }
 
   if (name === 'TimeoutError') {
-    return 'Camera permission is waiting. Tap Allow in the browser prompt, then press Start Camera again.';
+    return 'Camera did not open in time. Tap Start Camera again and press Allow immediately.';
   }
 
   if (isPermissionError(error)) {
@@ -74,11 +69,11 @@ function getCameraErrorMessage(error) {
   }
 
   if (name === 'NotReadableError' || /in use|busy|could not start|track start/i.test(message)) {
-    return 'Camera is busy in another app or tab. Close other camera apps, then tap Restart Camera.';
+    return 'Camera is busy in another app or tab. Close other camera apps, then tap Start Camera.';
   }
 
   if (name === 'OverconstrainedError' || /constraint/i.test(message)) {
-    return 'This camera mode is not supported. Tap Start Camera to try another camera.';
+    return 'This camera mode is not supported. Tap Start Camera to try another mode.';
   }
 
   return message || 'Unable to start camera. Tap Start Camera.';
@@ -102,25 +97,37 @@ async function getReadyReader(shouldContinue) {
   throw new Error('Scanner view is not ready. Tap Start Camera again.');
 }
 
-function uniqCandidates(candidates) {
-  const seen = new Set();
-  return candidates.filter((candidate) => {
-    const key = typeof candidate === 'string' ? candidate : JSON.stringify(candidate);
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
+function stopStream(stream) {
+  stream?.getTracks?.().forEach((track) => track.stop());
 }
 
-async function getDeviceCandidates() {
-  const devices = await withTimeout(Html5Qrcode.getCameras(), 2500, 'Camera list timed out.').catch(() => []);
-  const rearCameras = devices.filter((device) => {
-    const label = String(device.label || '').toLowerCase();
-    return label.includes('back') || label.includes('rear') || label.includes('environment') || label.includes('wide');
-  });
-  const otherCameras = devices.filter((device) => !rearCameras.some((rearCamera) => rearCamera.id === device.id));
+async function openBrowserCamera() {
+  const constraints = {
+    audio: false,
+    video: {
+      facingMode: { ideal: 'environment' },
+      width: { ideal: 1280 },
+      height: { ideal: 720 },
+    },
+  };
 
-  return [...rearCameras, ...otherCameras].map((device) => device.id).filter(Boolean);
+  const stream = await withTimeout(
+    navigator.mediaDevices.getUserMedia(constraints),
+    CAMERA_PERMISSION_TIMEOUT_MS,
+    'Camera permission timed out.'
+  );
+
+  const [track] = stream.getVideoTracks();
+  if (!track) {
+    stopStream(stream);
+    throw new Error('Camera opened without a video track.');
+  }
+
+  const settings = track.getSettings?.() || {};
+  stopStream(stream);
+  await wait(220);
+
+  return settings.deviceId || null;
 }
 
 function waitForVideo(video) {
@@ -195,18 +202,20 @@ export default function QRScanner({
     }
   }, []);
 
-  const startCandidate = useCallback(async (cameraConfig, handleSuccess) => {
+  const startQrEngine = useCallback(async (cameraId, handleSuccess) => {
     const reader = document.getElementById(READER_ID);
     if (reader) reader.innerHTML = '';
 
     const scanner = new Html5Qrcode(READER_ID, false);
     scannerRef.current = scanner;
 
+    const cameraConfig = cameraId ? { deviceId: { exact: cameraId } } : { facingMode: { ideal: 'environment' } };
+
     try {
       await withTimeout(
         scanner.start(cameraConfig, scannerConfig, handleSuccess, () => {}),
-        CAMERA_START_TIMEOUT_MS,
-        'Camera permission timed out.'
+        QR_START_TIMEOUT_MS,
+        'QR camera start timed out.'
       );
 
       const video = document.querySelector(`#${READER_ID} video`);
@@ -219,22 +228,22 @@ export default function QRScanner({
       }
 
       return scanner;
-    } catch (candidateError) {
+    } catch (startError) {
       if (scannerRef.current === scanner) scannerRef.current = null;
 
       try {
         if (scanner.isScanning) await scanner.stop();
       } catch {
-        // Candidate failed before the camera fully opened.
+        // Scanner may not have reached scanning state.
       }
 
       try {
         scanner.clear();
       } catch {
-        // Reader DOM can be cleared by the next candidate.
+        // Reader DOM can be cleared by a retry.
       }
 
-      throw candidateError;
+      throw startError;
     }
   }, []);
 
@@ -251,8 +260,17 @@ export default function QRScanner({
       setScannerStatus('starting');
       await stopScanner();
 
+      const watchdog = window.setTimeout(async () => {
+        if (!mountedRef.current || token !== startTokenRef.current || statusRef.current !== 'starting') return;
+
+        startTokenRef.current += 1;
+        startingRef.current = false;
+        await stopScanner();
+        setScannerStatus('error', 'Camera is still opening. Tap Start Camera again and press Allow immediately.');
+      }, HARD_START_TIMEOUT_MS);
+
       try {
-        await wait(160);
+        await wait(120);
         if (!mountedRef.current || token !== startTokenRef.current) return;
 
         if (!navigator.mediaDevices?.getUserMedia) {
@@ -277,42 +295,10 @@ export default function QRScanner({
           onScanRef.current?.(value);
         };
 
-        let lastCameraError = null;
-        let activeScanner = null;
-        const directCandidates = uniqCandidates(baseCameraCandidates);
+        const cameraId = await openBrowserCamera();
+        if (!mountedRef.current || token !== startTokenRef.current) return;
 
-        for (const cameraCandidate of directCandidates) {
-          if (!mountedRef.current || token !== startTokenRef.current) return;
-
-          try {
-            activeScanner = await startCandidate(cameraCandidate, handleSuccess);
-            break;
-          } catch (candidateError) {
-            lastCameraError = candidateError;
-            if (isPermissionError(candidateError)) break;
-            await wait(120);
-          }
-        }
-
-        if (!activeScanner && !isPermissionError(lastCameraError)) {
-          const deviceCandidates = await getDeviceCandidates();
-
-          for (const cameraCandidate of deviceCandidates) {
-            if (!mountedRef.current || token !== startTokenRef.current) return;
-
-            try {
-              activeScanner = await startCandidate(cameraCandidate, handleSuccess);
-              break;
-            } catch (candidateError) {
-              lastCameraError = candidateError;
-              if (isPermissionError(candidateError)) break;
-              await wait(120);
-            }
-          }
-        }
-
-        if (!activeScanner) throw lastCameraError || new Error('No camera could be started.');
-
+        await startQrEngine(cameraId, handleSuccess);
         if (!mountedRef.current || token !== startTokenRef.current) {
           await stopScanner();
           return;
@@ -324,10 +310,11 @@ export default function QRScanner({
         await stopScanner();
         setScannerStatus('error', getCameraErrorMessage(scannerError));
       } finally {
+        window.clearTimeout(watchdog);
         if (token === startTokenRef.current) startingRef.current = false;
       }
     },
-    [setScannerStatus, startCandidate, stopScanner]
+    [setScannerStatus, startQrEngine, stopScanner]
   );
 
   const restartScanner = useCallback(() => {
@@ -401,6 +388,9 @@ export default function QRScanner({
             >
               <Loader2 className="h-8 w-8 animate-spin" />
               <span className="font-orbitron text-xs uppercase tracking-widest">Opening camera</span>
+              <span className="max-w-[240px] text-center text-xs leading-relaxed text-white/45">
+                Use the browser popup and press Allow. This screen will stop automatically if it hangs.
+              </span>
             </motion.div>
           )}
         </AnimatePresence>
@@ -421,7 +411,7 @@ export default function QRScanner({
                 onClick={restartScanner}
               >
                 {status === 'error' ? <RotateCcw className="h-4 w-4" /> : <Play className="h-4 w-4" />}
-                {status === 'error' ? 'Start Camera' : 'Start Camera'}
+                Start Camera
               </button>
             </motion.div>
           )}
