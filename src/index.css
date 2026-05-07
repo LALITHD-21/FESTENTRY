@@ -220,14 +220,25 @@ button {
   box-shadow: 0 0 45px rgba(255, 0, 229, 0.65);
 }
 
+.poster-name-slot {
+  pointer-events: none;
+}
+
 .poster-name {
-  line-height: 0.96;
+  font-family: "Bebas Neue", "Orbitron", "Arial Black", Impact, sans-serif;
+  line-height: 0.9;
   letter-spacing: 0;
-  color: var(--neon-gold);
+  background: linear-gradient(180deg, #fff8d6 0%, #ffd56a 32%, #ff9f1c 62%, #ff3fd4 100%);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  -webkit-text-stroke: clamp(0.6px, 0.08vw, 1.4px) rgba(255, 245, 204, 0.7);
+  filter: drop-shadow(0 0 10px rgba(247, 196, 92, 0.72));
   text-shadow:
-    0 2px 0 rgba(75, 32, 0, 0.95),
-    0 0 16px rgba(247, 196, 92, 0.78),
-    0 0 32px rgba(255, 0, 229, 0.25);
+    0 2px 0 rgba(56, 14, 0, 0.98),
+    0 0 14px rgba(247, 196, 92, 0.92),
+    0 0 30px rgba(255, 0, 229, 0.58),
+    0 0 48px rgba(0, 245, 255, 0.24);
 }
 
 @keyframes scanLine {

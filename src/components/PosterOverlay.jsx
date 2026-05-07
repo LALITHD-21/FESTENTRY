@@ -1,29 +1,21 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import confetti from 'canvas-confetti';
 import { RotateCcw, SlidersHorizontal } from 'lucide-react';
 import concertPoster from '../assets/concert-poster.png';
 
-const STORAGE_KEY = 'vivan-poster-alignment-v3';
+const STORAGE_KEY = 'vivan-poster-alignment-v4';
 
 const DEFAULT_ALIGNMENT = {
   photoLeft: 70.05,
   photoTop: 15.35,
   photoWidth: 23.05,
   photoHeight: 40.98,
-  nameLeft: 65.4,
-  nameTop: 68.5,
-  nameWidth: 32.15,
-  nameHeight: 11.6,
+  nameLeft: 66.9,
+  nameTop: 70.35,
+  nameWidth: 29.9,
+  nameHeight: 8.05,
 };
-
-function getNameSize(name = '') {
-  const length = name.trim().length;
-  if (length > 30) return 'clamp(16px,2.05vw,34px)';
-  if (length > 22) return 'clamp(18px,2.45vw,42px)';
-  if (length > 15) return 'clamp(22px,3vw,54px)';
-  return 'clamp(28px,3.7vw,70px)';
-}
 
 function readAlignment() {
   try {
@@ -129,21 +121,13 @@ export default function PosterOverlay({ student }) {
               </motion.div>
 
               <motion.div
-                className="absolute flex items-center justify-center px-[1.6%]"
+                className="poster-name-slot absolute flex items-center justify-center"
                 style={nameSlot}
                 initial={{ opacity: 0, y: 28, scale: 0.9 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 transition={{ delay: 0.2, type: 'spring', damping: 17, stiffness: 170 }}
               >
-                <motion.span
-                  className="poster-name block w-full truncate text-center font-orbitron font-black uppercase"
-                  style={{ fontSize: getNameSize(student.name) }}
-                  initial={{ filter: 'blur(12px)' }}
-                  animate={{ filter: 'blur(0px)' }}
-                  transition={{ delay: 0.35, duration: 0.7 }}
-                >
-                  {student.name}
-                </motion.span>
+                <PosterName name={student.name} />
               </motion.div>
             </motion.div>
           ) : (
@@ -199,13 +183,77 @@ export default function PosterOverlay({ student }) {
             <AlignmentSlider label="Photo W" value={alignment.photoWidth} min={21.8} max={24.4} step={0.025} onChange={(value) => updateAlignment('photoWidth', value)} />
             <AlignmentSlider label="Photo H" value={alignment.photoHeight} min={39.2} max={43.2} step={0.025} onChange={(value) => updateAlignment('photoHeight', value)} />
             <div className="my-3 h-px bg-white/10" />
-            <AlignmentSlider label="Name X" value={alignment.nameLeft} min={63.8} max={67.2} step={0.025} onChange={(value) => updateAlignment('nameLeft', value)} />
-            <AlignmentSlider label="Name Y" value={alignment.nameTop} min={66.8} max={70.4} step={0.025} onChange={(value) => updateAlignment('nameTop', value)} />
-            <AlignmentSlider label="Name W" value={alignment.nameWidth} min={29.5} max={34} step={0.025} onChange={(value) => updateAlignment('nameWidth', value)} />
-            <AlignmentSlider label="Name H" value={alignment.nameHeight} min={9.5} max={13.5} step={0.025} onChange={(value) => updateAlignment('nameHeight', value)} />
+            <AlignmentSlider label="Name X" value={alignment.nameLeft} min={65.8} max={68.2} step={0.025} onChange={(value) => updateAlignment('nameLeft', value)} />
+            <AlignmentSlider label="Name Y" value={alignment.nameTop} min={69.2} max={71.4} step={0.025} onChange={(value) => updateAlignment('nameTop', value)} />
+            <AlignmentSlider label="Name W" value={alignment.nameWidth} min={28.2} max={31.6} step={0.025} onChange={(value) => updateAlignment('nameWidth', value)} />
+            <AlignmentSlider label="Name H" value={alignment.nameHeight} min={6.8} max={9.2} step={0.025} onChange={(value) => updateAlignment('nameHeight', value)} />
           </motion.div>
         )}
       </AnimatePresence>
+    </div>
+  );
+}
+
+function PosterName({ name }) {
+  const slotRef = useRef(null);
+  const textRef = useRef(null);
+  const [fontSize, setFontSize] = useState(42);
+  const displayName = String(name || '').trim().replace(/\s+/g, ' ');
+
+  useLayoutEffect(() => {
+    const fitName = () => {
+      const slot = slotRef.current;
+      const text = textRef.current;
+      if (!slot || !text || !displayName) return;
+
+      const rect = slot.getBoundingClientRect();
+      if (!rect.width || !rect.height) return;
+
+      const maxSize = Math.min(rect.height * 0.78, rect.width * 0.15, 78);
+      let low = 14;
+      let high = Math.max(18, maxSize);
+      let best = low;
+
+      for (let index = 0; index < 14; index += 1) {
+        const mid = (low + high) / 2;
+        text.style.fontSize = `${mid}px`;
+
+        if (text.scrollWidth <= rect.width * 0.965 && text.scrollHeight <= rect.height * 0.9) {
+          best = mid;
+          low = mid;
+        } else {
+          high = mid;
+        }
+      }
+
+      setFontSize(best);
+    };
+
+    fitName();
+    document.fonts?.ready?.then(fitName);
+
+    const observer = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(fitName) : null;
+    if (slotRef.current) observer?.observe(slotRef.current);
+    window.addEventListener('resize', fitName);
+
+    return () => {
+      observer?.disconnect();
+      window.removeEventListener('resize', fitName);
+    };
+  }, [displayName]);
+
+  return (
+    <div ref={slotRef} className="flex h-full w-full items-center justify-center overflow-hidden px-[1.5%] py-[0.8%]">
+      <motion.span
+        ref={textRef}
+        className="poster-name block max-w-full whitespace-nowrap text-center font-black uppercase"
+        style={{ fontSize: `${fontSize}px` }}
+        initial={{ filter: 'blur(12px) drop-shadow(0 0 6px rgba(247,196,92,0.4))' }}
+        animate={{ filter: 'blur(0px) drop-shadow(0 0 10px rgba(247,196,92,0.72))' }}
+        transition={{ delay: 0.35, duration: 0.7 }}
+      >
+        {displayName}
+      </motion.span>
     </div>
   );
 }
