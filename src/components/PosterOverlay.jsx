@@ -198,7 +198,7 @@ function PosterName({ name }) {
   const slotRef = useRef(null);
   const textRef = useRef(null);
   const [fontSize, setFontSize] = useState(42);
-  const displayName = String(name || '').trim().replace(/\s+/g, ' ');
+  const displayName = formatPosterName(name);
 
   useLayoutEffect(() => {
     const fitName = () => {
@@ -209,7 +209,7 @@ function PosterName({ name }) {
       const rect = slot.getBoundingClientRect();
       if (!rect.width || !rect.height) return;
 
-      const maxSize = Math.min(rect.height * 0.78, rect.width * 0.15, 78);
+      const maxSize = Math.min(rect.height * 0.9, rect.width * 0.18, 82);
       let low = 14;
       let high = Math.max(18, maxSize);
       let best = low;
@@ -246,16 +246,28 @@ function PosterName({ name }) {
     <div ref={slotRef} className="flex h-full w-full items-center justify-center overflow-hidden px-[1.5%] py-[0.8%]">
       <motion.span
         ref={textRef}
-        className="poster-name block max-w-full whitespace-nowrap text-center font-black uppercase"
+        className="poster-name block max-w-full whitespace-nowrap text-center"
         style={{ fontSize: `${fontSize}px` }}
-        initial={{ filter: 'blur(12px) drop-shadow(0 0 6px rgba(247,196,92,0.4))' }}
-        animate={{ filter: 'blur(0px) drop-shadow(0 0 10px rgba(247,196,92,0.72))' }}
+        initial={{ filter: 'blur(12px) drop-shadow(0 0 8px rgba(0,245,255,0.5))' }}
+        animate={{ filter: 'blur(0px) drop-shadow(0 0 16px rgba(255,0,229,0.95)) drop-shadow(0 0 28px rgba(0,245,255,0.72))' }}
         transition={{ delay: 0.35, duration: 0.7 }}
       >
         {displayName}
       </motion.span>
     </div>
   );
+}
+
+function formatPosterName(name) {
+  const cleaned = String(name || '').trim().replace(/\s+/g, ' ');
+  if (!cleaned) return '';
+
+  const letters = cleaned.replace(/[^\p{L}]/gu, '');
+  if (!letters || letters !== letters.toUpperCase()) return cleaned;
+
+  return cleaned
+    .toLowerCase()
+    .replace(/(^|[\s.'-])(\p{L})/gu, (match, prefix, letter) => `${prefix}${letter.toUpperCase()}`);
 }
 
 function AlignmentSlider({ label, value, min, max, step, onChange }) {

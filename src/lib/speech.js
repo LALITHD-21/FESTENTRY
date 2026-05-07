@@ -99,9 +99,9 @@ export function playRadioPermittedTone() {
 }
 
 export function playWarningAnnouncementTone() {
-  playTone({ frequency: 240, endFrequency: 120, duration: 0.2, type: 'sawtooth', volume: 0.18 });
-  playTone({ frequency: 240, endFrequency: 120, duration: 0.2, delay: 0.24, type: 'sawtooth', volume: 0.18 });
-  playTone({ frequency: 240, endFrequency: 120, duration: 0.2, delay: 0.48, type: 'sawtooth', volume: 0.18 });
+  playNoiseBurst({ duration: 0.045, volume: 0.08 });
+  playTone({ frequency: 520, endFrequency: 160, duration: 0.12, delay: 0.02, type: 'square', volume: 0.18 });
+  playTone({ frequency: 420, endFrequency: 130, duration: 0.12, delay: 0.16, type: 'square', volume: 0.16 });
   return true;
 }
 
@@ -155,10 +155,10 @@ export function announcePermitted(name) {
 export function announceAlreadyCheckedIn(name) {
   const studentName = cleanName(name);
   playWarningAnnouncementTone();
-  return speakLine(studentName ? `Already checked in. ${studentName}.` : 'Already checked in.', {
-    delay: 190,
-    rate: 0.82,
-    pitch: 0.72,
+  return speakLine(studentName ? `Access denied. Already scanned. ${studentName}.` : 'Access denied. Already scanned.', {
+    delay: 145,
+    rate: 0.88,
+    pitch: 0.7,
     volume: 1,
   });
 }

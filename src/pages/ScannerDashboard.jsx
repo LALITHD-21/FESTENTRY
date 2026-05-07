@@ -283,11 +283,10 @@ export default function ScannerDashboard() {
 
         if (student.checked_in) {
           await logScan(passId, 'duplicate');
-          playAudio(warningSound, 'error');
           announceAlreadyCheckedIn(student.name);
           void notifyScan({
-            title: 'ALREADY CHECKED-IN',
-            body: `${student.name} has already entered.`,
+            title: 'ACCESS DENIED',
+            body: `${student.name} was already scanned.`,
             tag: `duplicate-${student.receipt_id || passId}`,
           });
           if (navigator.vibrate) navigator.vibrate([180, 90, 180, 90, 260]);
