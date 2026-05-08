@@ -3,22 +3,16 @@ import { motion } from 'framer-motion';
 import {
   Bell,
   Clock3,
-  Copy,
   Gauge,
-  MapPin,
   Megaphone,
   Moon,
-  Power,
   Radio,
   RefreshCcw,
   RotateCcw,
   Satellite,
-  ShieldCheck,
   Sparkles,
   Trash2,
   UserCheck,
-  Vibrate,
-  Volume2,
   Wifi,
   Zap,
 } from 'lucide-react';
@@ -74,13 +68,6 @@ function formatTime(date = new Date()) {
   });
 }
 
-function formatDuration(ms) {
-  const totalSeconds = Math.max(0, Math.floor(ms / 1000));
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = totalSeconds % 60;
-  return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
-}
-
 export default function ScannerDashboard() {
   const [clock, setClock] = useState(new Date());
   const [processing, setProcessing] = useState(false);
@@ -99,11 +86,6 @@ export default function ScannerDashboard() {
   const [fastMode, setFastMode] = useState(() => window.localStorage.getItem('vivan-fast-scan-mode') === 'true');
   const [wakeLockEnabled, setWakeLockEnabled] = useState(() => window.localStorage.getItem('vivan-keep-awake') === 'true');
   const [wakeLockActive, setWakeLockActive] = useState(false);
-  const [gatePaused, setGatePaused] = useState(false);
-  const [voiceEnabled, setVoiceEnabled] = useState(() => window.localStorage.getItem('vivan-voice-enabled') !== 'false');
-  const [vibrationEnabled, setVibrationEnabled] = useState(() => window.localStorage.getItem('vivan-vibration-enabled') !== 'false');
-  const [stationName, setStationName] = useState(() => window.localStorage.getItem('vivan-station-name') || 'MAIN GATE');
-  const [sessionStartedAt, setSessionStartedAt] = useState(() => Date.now());
   const lockRef = useRef(false);
   const unlockTimer = useRef(null);
   const wakeLockRef = useRef(null);
@@ -200,21 +182,14 @@ export default function ScannerDashboard() {
   }, [loadRealtimeLogs]);
 
   const stats = useMemo(
-    () => {
-      const elapsedMs = Math.max(1000, clock.getTime() - sessionStartedAt);
-      const elapsedMinutes = elapsedMs / 60000;
-
-      return {
-        total: counts.total,
-        success: counts.success,
-        duplicate: counts.duplicate,
-        invalid: counts.invalid,
-        approvalRate: counts.total > 0 ? Math.round((counts.success / counts.total) * 100) : 0,
-        speedPerMinute: counts.total > 0 ? Math.round((counts.total / elapsedMinutes) * 10) / 10 : 0,
-        sessionTime: formatDuration(elapsedMs),
-      };
-    },
-    [clock, counts, sessionStartedAt]
+    () => ({
+      total: counts.total,
+      success: counts.success,
+      duplicate: counts.duplicate,
+      invalid: counts.invalid,
+      approvalRate: counts.total > 0 ? Math.round((counts.success / counts.total) * 100) : 0,
+    }),
+    [counts]
   );
 
   const releaseLock = useCallback((delay = 1300) => {
@@ -260,7 +235,6 @@ export default function ScannerDashboard() {
     setLogs([]);
     setLastSuccessStudent(null);
     setLastSuccessAt('');
-    setSessionStartedAt(Date.now());
     setToast({
       type: 'info',
       title: 'Session Reset',
@@ -401,68 +375,10 @@ export default function ScannerDashboard() {
     });
   }, []);
 
-  const toggleVoice = useCallback(() => {
-    const nextEnabled = !voiceEnabled;
-    setVoiceEnabled(nextEnabled);
-    window.localStorage.setItem('vivan-voice-enabled', String(nextEnabled));
-    setToast({
-      type: 'info',
-      title: nextEnabled ? 'Voice On' : 'Voice Off',
-      message: nextEnabled ? 'Announcements will play after scans.' : 'Announcements are muted on this phone.',
-    });
-  }, [voiceEnabled]);
-
-  const toggleVibration = useCallback(() => {
-    const nextEnabled = !vibrationEnabled;
-    setVibrationEnabled(nextEnabled);
-    window.localStorage.setItem('vivan-vibration-enabled', String(nextEnabled));
-    setToast({
-      type: 'info',
-      title: nextEnabled ? 'Vibration On' : 'Vibration Off',
-      message: nextEnabled ? 'Duplicate scans will vibrate the phone.' : 'Phone vibration is muted.',
-    });
-  }, [vibrationEnabled]);
-
-  const toggleGatePaused = useCallback(() => {
-    const nextPaused = !gatePaused;
-    unlockNow();
-    setGatePaused(nextPaused);
-    setToast({
-      type: 'info',
-      title: nextPaused ? 'Gate Paused' : 'Gate Open',
-      message: nextPaused ? 'Scanner will ignore QR scans until resumed.' : 'Scanner is ready for entries.',
-    });
-  }, [gatePaused, unlockNow]);
-
-  const updateStationName = useCallback((event) => {
-    const value = event.target.value.toUpperCase().slice(0, 22);
-    setStationName(value);
-    window.localStorage.setItem('vivan-station-name', value);
-  }, []);
-
-  const copyLink = useCallback(async (path, label) => {
-    const url = `${window.location.origin}${path}`;
-
-    try {
-      await navigator.clipboard.writeText(url);
-      setToast({
-        type: 'success',
-        title: `${label} Link Copied`,
-        message: url,
-      });
-    } catch {
-      setToast({
-        type: 'invalid',
-        title: 'Copy Failed',
-        message: url,
-      });
-    }
-  }, []);
-
   const handleScan = useCallback(
     async (rawPassId) => {
       const passId = String(rawPassId || '').trim();
-      if (!passId || gatePaused || lockRef.current || processing) return;
+      if (!passId || lockRef.current || processing) return;
 
       lockRef.current = true;
       setProcessing(true);
@@ -493,13 +409,13 @@ export default function ScannerDashboard() {
 
         const showDuplicate = async (duplicateRecord) => {
           await logScan(passId, 'duplicate');
-          if (voiceEnabled) announceAlreadyCheckedIn(duplicateRecord?.name);
+          announceAlreadyCheckedIn(duplicateRecord?.name);
           void notifyScan({
             title: 'DENIED',
             body: `${duplicateRecord?.name || passId} was already scanned.`,
             tag: `duplicate-${duplicateRecord?.receipt_id || passId}`,
           });
-          if (vibrationEnabled && navigator.vibrate) navigator.vibrate([180, 90, 180, 90, 260]);
+          if (navigator.vibrate) navigator.vibrate([180, 90, 180, 90, 260]);
           setCounts((previous) => ({ ...previous, duplicate: previous.duplicate + 1 }));
           setDuplicateStudent(duplicateRecord || student);
           addLog({
@@ -532,7 +448,7 @@ export default function ScannerDashboard() {
         await publishLiveDisplay(checkedInStudent);
         await logScan(passId, 'success');
         playAudio(successSound);
-        if (voiceEnabled) announcePermitted(checkedInStudent.name);
+        announcePermitted(checkedInStudent.name);
         void notifyScan({
           title: 'PERMITTED',
           body: `${checkedInStudent.name} checked in successfully.`,
@@ -571,7 +487,7 @@ export default function ScannerDashboard() {
         setProcessing(false);
       }
     },
-    [addLog, fastMode, gatePaused, processing, releaseLock, vibrationEnabled, voiceEnabled]
+    [addLog, fastMode, processing, releaseLock]
   );
 
   return (
@@ -601,23 +517,12 @@ export default function ScannerDashboard() {
         <motion.section initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}>
           <QRScanner
             onScan={handleScan}
-            disabled={gatePaused || processing || Boolean(duplicateStudent)}
+            disabled={processing || Boolean(duplicateStudent)}
             restartSignal={scannerRestartKey}
             resetSignal={scannerResetKey}
             onStatusChange={(nextStatus) => setScannerStatus(nextStatus)}
           />
         </motion.section>
-
-        <GateControlPanel
-          gatePaused={gatePaused}
-          voiceEnabled={voiceEnabled}
-          vibrationEnabled={vibrationEnabled}
-          stationName={stationName}
-          onToggleGate={toggleGatePaused}
-          onToggleVoice={toggleVoice}
-          onToggleVibration={toggleVibration}
-          onStationChange={updateStationName}
-        />
 
         <section className="grid grid-cols-3 gap-2">
           <ModeButton icon={Zap} label="Crowd" value={fastMode ? 'Fast' : 'Normal'} active={fastMode} onClick={toggleFastMode} />
@@ -634,20 +539,9 @@ export default function ScannerDashboard() {
         </section>
 
         <div className="grid grid-cols-2 gap-3">
-          <StatusChip icon={Radio} label="Scanner" value={gatePaused ? 'Paused' : processing ? 'Processing' : scannerStatus} />
+          <StatusChip icon={Radio} label="Scanner" value={processing ? 'Processing' : scannerStatus} />
           <StatusChip icon={Gauge} label="Approval" value={`${stats.approvalRate}%`} />
         </div>
-
-        <section className="grid grid-cols-3 gap-2">
-          <SessionMetric icon={Clock3} label="Session" value={stats.sessionTime} />
-          <SessionMetric icon={Gauge} label="Speed" value={`${stats.speedPerMinute}/m`} />
-          <SessionMetric icon={MapPin} label="Station" value={stationName || 'Gate'} />
-        </section>
-
-        <section className="grid grid-cols-2 gap-2">
-          <ActionButton icon={Copy} label="Copy Scanner" onClick={() => copyLink('/scanner', 'Scanner')} />
-          <ActionButton icon={Copy} label="Copy Welcome" onClick={() => copyLink('/welcome', 'Welcome')} />
-        </section>
 
         <LastApprovedCard
           student={lastSuccessStudent}
@@ -676,98 +570,9 @@ export default function ScannerDashboard() {
         </footer>
       </main>
 
-      <DuplicateModal
-        open={Boolean(duplicateStudent)}
-        student={duplicateStudent}
-        vibrationEnabled={vibrationEnabled}
-        onClose={() => setDuplicateStudent(null)}
-      />
+      <DuplicateModal open={Boolean(duplicateStudent)} student={duplicateStudent} onClose={() => setDuplicateStudent(null)} />
       <SuccessToast toast={toast} />
     </div>
-  );
-}
-
-function GateControlPanel({
-  gatePaused,
-  voiceEnabled,
-  vibrationEnabled,
-  stationName,
-  onToggleGate,
-  onToggleVoice,
-  onToggleVibration,
-  onStationChange,
-}) {
-  return (
-    <section className="rounded-lg border border-white/10 bg-white/[0.045] p-4 backdrop-blur-2xl">
-      <div className="mb-3 flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <ShieldCheck className="h-4 w-4 text-emerald-200" />
-          <span className="font-orbitron text-xs uppercase tracking-[0.24em] text-emerald-100">Gate Control</span>
-        </div>
-        <span className={`rounded-full border px-3 py-1 font-orbitron text-[10px] uppercase tracking-widest ${
-          gatePaused
-            ? 'border-amber-300/25 bg-amber-500/10 text-amber-100'
-            : 'border-emerald-300/25 bg-emerald-500/10 text-emerald-100'
-        }`}>
-          {gatePaused ? 'Paused' : 'Open'}
-        </span>
-      </div>
-
-      <label className="mb-3 flex items-center gap-2 rounded-lg border border-white/10 bg-black/25 px-3 py-2">
-        <MapPin className="h-4 w-4 text-fuchsia-100/70" />
-        <input
-          value={stationName}
-          onChange={onStationChange}
-          placeholder="STATION NAME"
-          className="min-w-0 flex-1 bg-transparent font-orbitron text-xs uppercase tracking-widest text-white outline-none placeholder:text-white/25"
-        />
-      </label>
-
-      <div className="grid grid-cols-3 gap-2">
-        <ControlToggle
-          icon={Power}
-          label={gatePaused ? 'Resume' : 'Pause'}
-          active={!gatePaused}
-          activeText={gatePaused ? 'Hold' : 'Live'}
-          onClick={onToggleGate}
-        />
-        <ControlToggle
-          icon={Volume2}
-          label="Voice"
-          active={voiceEnabled}
-          activeText={voiceEnabled ? 'On' : 'Off'}
-          onClick={onToggleVoice}
-        />
-        <ControlToggle
-          icon={Vibrate}
-          label="Vibe"
-          active={vibrationEnabled}
-          activeText={vibrationEnabled ? 'On' : 'Off'}
-          onClick={onToggleVibration}
-        />
-      </div>
-    </section>
-  );
-}
-
-function ControlToggle({ icon: Icon, label, active, activeText, onClick }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`rounded-lg border p-3 text-left transition active:scale-[0.98] ${
-        active
-          ? 'border-emerald-300/25 bg-emerald-400/10 text-emerald-100'
-          : 'border-white/10 bg-black/25 text-white/45'
-      }`}
-    >
-      <div className="mb-2 flex items-center justify-between">
-        <Icon className="h-4 w-4" />
-        <span className={`h-2 w-2 rounded-full ${active ? 'bg-emerald-300' : 'bg-white/20'}`} />
-      </div>
-      <p className="font-orbitron text-[10px] uppercase tracking-widest">{label}</p>
-      <p className="mt-1 font-orbitron text-xs font-bold text-white">{activeText}</p>
-    </button>
   );
 }
 
@@ -789,18 +594,6 @@ function ModeButton({ icon: Icon, label, value, active = false, onClick }) {
       <p className="font-orbitron text-[10px] uppercase tracking-widest text-white/40">{label}</p>
       <p className="mt-1 truncate font-orbitron text-xs font-bold text-white">{value}</p>
     </button>
-  );
-}
-
-function SessionMetric({ icon: Icon, label, value }) {
-  return (
-    <div className="min-w-0 rounded-lg border border-white/10 bg-white/[0.045] p-3 backdrop-blur-xl">
-      <div className="mb-2 flex items-center gap-2 text-cyan-100">
-        <Icon className="h-3.5 w-3.5 shrink-0" />
-        <span className="truncate text-[9px] uppercase tracking-widest text-white/35">{label}</span>
-      </div>
-      <p className="truncate font-orbitron text-sm font-bold text-white">{value}</p>
-    </div>
   );
 }
 

@@ -27,19 +27,19 @@ function playWarningSound() {
   };
 }
 
-export default function DuplicateModal({ open, student, vibrationEnabled = true, onClose }) {
+export default function DuplicateModal({ open, student, onClose }) {
   useEffect(() => {
     if (!open) return undefined;
 
     const stopWarningSound = playWarningSound();
-    if (vibrationEnabled && navigator.vibrate) navigator.vibrate([180, 90, 180, 90, 260]);
+    if (navigator.vibrate) navigator.vibrate([180, 90, 180, 90, 260]);
     const timer = window.setTimeout(onClose, 4200);
 
     return () => {
       stopWarningSound?.();
       window.clearTimeout(timer);
     };
-  }, [open, onClose, vibrationEnabled]);
+  }, [open, onClose]);
 
   return (
     <AnimatePresence>
