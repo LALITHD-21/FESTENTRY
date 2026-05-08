@@ -1,6 +1,21 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Clock3, Radio, RefreshCcw, RotateCcw, Satellite, Sparkles, Trash2, Wifi } from 'lucide-react';
+import {
+  Bell,
+  Clock3,
+  Gauge,
+  Megaphone,
+  Moon,
+  Radio,
+  RefreshCcw,
+  RotateCcw,
+  Satellite,
+  Sparkles,
+  Trash2,
+  UserCheck,
+  Wifi,
+  Zap,
+} from 'lucide-react';
 import AttendanceCard from '../components/AttendanceCard';
 import DuplicateModal from '../components/DuplicateModal';
 import QRScanner from '../components/QRScanner';
@@ -65,15 +80,82 @@ export default function ScannerDashboard() {
   const [scannerResetKey, setScannerResetKey] = useState(0);
   const [scannerStatus, setScannerStatus] = useState('idle');
   const [lastSuccessStudent, setLastSuccessStudent] = useState(null);
+  const [lastSuccessAt, setLastSuccessAt] = useState('');
   const [resettingAttendance, setResettingAttendance] = useState(false);
   const [clearingLogs, setClearingLogs] = useState(false);
+  const [fastMode, setFastMode] = useState(() => window.localStorage.getItem('vivan-fast-scan-mode') === 'true');
+  const [wakeLockEnabled, setWakeLockEnabled] = useState(() => window.localStorage.getItem('vivan-keep-awake') === 'true');
+  const [wakeLockActive, setWakeLockActive] = useState(false);
   const lockRef = useRef(false);
   const unlockTimer = useRef(null);
+  const wakeLockRef = useRef(null);
 
   useEffect(() => {
     const timer = window.setInterval(() => setClock(new Date()), 1000);
     return () => window.clearInterval(timer);
   }, []);
+
+  const releaseWakeLock = useCallback(async () => {
+    const lock = wakeLockRef.current;
+    wakeLockRef.current = null;
+
+    try {
+      await lock?.release?.();
+    } catch {
+      // The browser may already have released it.
+    }
+
+    setWakeLockActive(false);
+  }, []);
+
+  const requestWakeLock = useCallback(async () => {
+    if (!('wakeLock' in navigator)) {
+      setWakeLockEnabled(false);
+      window.localStorage.setItem('vivan-keep-awake', 'false');
+      setToast({
+        type: 'invalid',
+        title: 'Keep Awake Unsupported',
+        message: 'This browser does not support screen wake lock.',
+      });
+      return;
+    }
+
+    try {
+      await releaseWakeLock();
+      const lock = await navigator.wakeLock.request('screen');
+      wakeLockRef.current = lock;
+      setWakeLockActive(true);
+      lock.addEventListener('release', () => setWakeLockActive(false), { once: true });
+    } catch (error) {
+      setWakeLockActive(false);
+      setToast({
+        type: 'invalid',
+        title: 'Keep Awake Failed',
+        message: error?.message || 'Tap again after interacting with the page.',
+      });
+    }
+  }, [releaseWakeLock]);
+
+  useEffect(() => {
+    if (wakeLockEnabled) {
+      requestWakeLock();
+    } else {
+      releaseWakeLock();
+    }
+
+    return () => releaseWakeLock();
+  }, [releaseWakeLock, requestWakeLock, wakeLockEnabled]);
+
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible' && wakeLockEnabled && !wakeLockRef.current) {
+        requestWakeLock();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => document.removeEventListener('visibilitychange', handleVisibility);
+  }, [requestWakeLock, wakeLockEnabled]);
 
   useEffect(() => () => window.clearTimeout(unlockTimer.current), []);
 
@@ -105,6 +187,7 @@ export default function ScannerDashboard() {
       success: counts.success,
       duplicate: counts.duplicate,
       invalid: counts.invalid,
+      approvalRate: counts.total > 0 ? Math.round((counts.success / counts.total) * 100) : 0,
     }),
     [counts]
   );
@@ -150,6 +233,8 @@ export default function ScannerDashboard() {
     unlockNow();
     setCounts({ total: 0, success: 0, duplicate: 0, invalid: 0 });
     setLogs([]);
+    setLastSuccessStudent(null);
+    setLastSuccessAt('');
     setToast({
       type: 'info',
       title: 'Session Reset',
@@ -212,6 +297,7 @@ export default function ScannerDashboard() {
       const { resetCount } = await resetAttendanceToZero();
       setCounts({ total: 0, success: 0, duplicate: 0, invalid: 0 });
       setLastSuccessStudent(null);
+      setLastSuccessAt('');
       setRefreshKey((key) => key + 1);
       setScannerResetKey((key) => key + 1);
       setToast({
@@ -248,6 +334,46 @@ export default function ScannerDashboard() {
       message: synced ? 'Latest student was pushed to the welcome screen.' : 'Could not push to Supabase realtime.',
     });
   }, [lastSuccessStudent]);
+
+  const toggleFastMode = useCallback(() => {
+    const nextMode = !fastMode;
+    setFastMode(nextMode);
+    window.localStorage.setItem('vivan-fast-scan-mode', String(nextMode));
+    setToast({
+      type: 'info',
+      title: nextMode ? 'Crowd Mode On' : 'Crowd Mode Off',
+      message: nextMode ? 'Successful scan cooldown is shorter for faster queues.' : 'Scanner cooldown returned to normal.',
+    });
+  }, [fastMode]);
+
+  const toggleWakeLock = useCallback(() => {
+    const nextEnabled = !wakeLockEnabled;
+    setWakeLockEnabled(nextEnabled);
+    window.localStorage.setItem('vivan-keep-awake', String(nextEnabled));
+    setToast({
+      type: 'info',
+      title: nextEnabled ? 'Keep Awake On' : 'Keep Awake Off',
+      message: nextEnabled ? 'Phone screen will try to stay awake while scanning.' : 'Screen wake lock disabled.',
+    });
+  }, [wakeLockEnabled]);
+
+  const requestNotifications = useCallback(async () => {
+    if (!('Notification' in window)) {
+      setToast({
+        type: 'invalid',
+        title: 'Notifications Unsupported',
+        message: 'This browser does not support web notifications.',
+      });
+      return;
+    }
+
+    const permission = await Notification.requestPermission();
+    setToast({
+      type: permission === 'granted' ? 'success' : 'invalid',
+      title: permission === 'granted' ? 'Notifications Ready' : 'Notifications Blocked',
+      message: permission === 'granted' ? 'Scan alerts can now appear on this phone.' : 'Allow notifications in browser settings.',
+    });
+  }, []);
 
   const handleScan = useCallback(
     async (rawPassId) => {
@@ -322,13 +448,14 @@ export default function ScannerDashboard() {
         await publishLiveDisplay(checkedInStudent);
         await logScan(passId, 'success');
         playAudio(successSound);
-        window.setTimeout(() => announcePermitted(checkedInStudent.name), 320);
+        announcePermitted(checkedInStudent.name);
         void notifyScan({
           title: 'PERMITTED',
           body: `${checkedInStudent.name} checked in successfully.`,
           tag: `success-${checkedInStudent.receipt_id || passId}`,
         });
         setLastSuccessStudent(checkedInStudent);
+        setLastSuccessAt(new Date().toISOString());
         setCounts((previous) => ({ ...previous, success: previous.success + 1 }));
         setRefreshKey((key) => key + 1);
         setToast({
@@ -344,7 +471,7 @@ export default function ScannerDashboard() {
           name: checkedInStudent.name,
           detail: checkedInStudent.section || 'Welcome display pushed',
         });
-        releaseLock(1700);
+        releaseLock(fastMode ? 900 : 1700);
       } catch (error) {
         playAudio(warningSound, 'error');
         setCounts((previous) => ({ ...previous, invalid: previous.invalid + 1 }));
@@ -360,7 +487,7 @@ export default function ScannerDashboard() {
         setProcessing(false);
       }
     },
-    [addLog, processing, releaseLock]
+    [addLog, fastMode, processing, releaseLock]
   );
 
   return (
@@ -397,6 +524,12 @@ export default function ScannerDashboard() {
           />
         </motion.section>
 
+        <section className="grid grid-cols-3 gap-2">
+          <ModeButton icon={Zap} label="Crowd" value={fastMode ? 'Fast' : 'Normal'} active={fastMode} onClick={toggleFastMode} />
+          <ModeButton icon={Moon} label="Awake" value={wakeLockActive ? 'On' : wakeLockEnabled ? 'Ready' : 'Off'} active={wakeLockEnabled} onClick={toggleWakeLock} />
+          <ModeButton icon={Bell} label="Alerts" value="Enable" onClick={requestNotifications} />
+        </section>
+
         <section className="grid grid-cols-2 gap-2">
           <ActionButton icon={RefreshCcw} label="Fresh Scan" onClick={startFreshScan} />
           <ActionButton icon={Satellite} label="Quick Sync" onClick={quickSyncWelcome} />
@@ -407,8 +540,15 @@ export default function ScannerDashboard() {
 
         <div className="grid grid-cols-2 gap-3">
           <StatusChip icon={Radio} label="Scanner" value={processing ? 'Processing' : scannerStatus} />
-          <StatusChip icon={Clock3} label="Realtime" value={isSupabaseConfigured ? 'Online' : 'Missing env'} />
+          <StatusChip icon={Gauge} label="Approval" value={`${stats.approvalRate}%`} />
         </div>
+
+        <LastApprovedCard
+          student={lastSuccessStudent}
+          lastSuccessAt={lastSuccessAt}
+          onReannounce={() => lastSuccessStudent && announcePermitted(lastSuccessStudent.name)}
+          onSync={quickSyncWelcome}
+        />
 
         <AttendanceCard
           refreshKey={refreshKey}
@@ -425,6 +565,104 @@ export default function ScannerDashboard() {
       <DuplicateModal open={Boolean(duplicateStudent)} student={duplicateStudent} onClose={() => setDuplicateStudent(null)} />
       <SuccessToast toast={toast} />
     </div>
+  );
+}
+
+function ModeButton({ icon: Icon, label, value, active = false, onClick }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`rounded-lg border p-3 text-left backdrop-blur-xl transition active:scale-[0.98] ${
+        active
+          ? 'border-fuchsia-300/35 bg-fuchsia-400/15 shadow-[0_0_28px_rgba(255,0,229,0.12)]'
+          : 'border-white/10 bg-white/[0.045]'
+      }`}
+    >
+      <div className="mb-2 flex items-center justify-between">
+        <Icon className={`h-4 w-4 ${active ? 'text-fuchsia-100' : 'text-cyan-100/70'}`} />
+        <span className={`h-2 w-2 rounded-full ${active ? 'bg-emerald-300' : 'bg-white/20'}`} />
+      </div>
+      <p className="font-orbitron text-[10px] uppercase tracking-widest text-white/40">{label}</p>
+      <p className="mt-1 truncate font-orbitron text-xs font-bold text-white">{value}</p>
+    </button>
+  );
+}
+
+function LastApprovedCard({ student, lastSuccessAt, onReannounce, onSync }) {
+  if (!student) {
+    return (
+      <section className="rounded-lg border border-white/10 bg-white/[0.045] p-4 backdrop-blur-2xl">
+        <div className="flex items-center gap-3">
+          <div className="flex h-12 w-12 items-center justify-center rounded-lg border border-white/10 bg-black/25">
+            <UserCheck className="h-5 w-5 text-white/35" />
+          </div>
+          <div>
+            <p className="font-orbitron text-xs uppercase tracking-[0.24em] text-white/55">Last Approved</p>
+            <p className="mt-1 text-sm text-white/35">Waiting for first successful scan</p>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  return (
+    <motion.section
+      key={`${student.receipt_id || student.name}-${lastSuccessAt}`}
+      className="overflow-hidden rounded-lg border border-emerald-300/20 bg-emerald-400/[0.075] p-4 shadow-[0_0_38px_rgba(16,185,129,0.12)] backdrop-blur-2xl"
+      initial={{ opacity: 0, y: 14 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ type: 'spring', damping: 20, stiffness: 170 }}
+    >
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <UserCheck className="h-4 w-4 text-emerald-200" />
+          <span className="font-orbitron text-xs uppercase tracking-[0.24em] text-emerald-100">Last Approved</span>
+        </div>
+        <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-widest text-white/45">
+          <Clock3 className="h-3.5 w-3.5" />
+          {lastSuccessAt ? formatTime(lastSuccessAt) : 'Now'}
+        </div>
+      </div>
+
+      <div className="flex items-center gap-3">
+        <div className="h-16 w-16 shrink-0 overflow-hidden rounded-lg border border-emerald-200/25 bg-emerald-500/10">
+          {student.photo_url ? (
+            <img src={student.photo_url} alt={student.name} className="h-full w-full object-cover" />
+          ) : (
+            <div className="flex h-full w-full items-center justify-center font-orbitron text-2xl font-black text-emerald-100">
+              {student.name?.[0]?.toUpperCase() || 'A'}
+            </div>
+          )}
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="truncate font-orbitron text-lg font-bold text-white">{student.name}</p>
+          <p className="truncate text-xs uppercase tracking-[0.22em] text-emerald-100/55">
+            {student.section || student.department || student.college_name || 'Entry approved'}
+          </p>
+          <p className="mt-1 truncate font-mono text-[11px] text-white/35">{student.receipt_id || student.pass_id}</p>
+        </div>
+      </div>
+
+      <div className="mt-3 grid grid-cols-2 gap-2">
+        <button
+          type="button"
+          onClick={onReannounce}
+          className="inline-flex items-center justify-center gap-2 rounded-lg border border-emerald-300/20 bg-emerald-400/10 px-3 py-2 font-orbitron text-[10px] uppercase tracking-widest text-emerald-100"
+        >
+          <Megaphone className="h-3.5 w-3.5" />
+          Announce
+        </button>
+        <button
+          type="button"
+          onClick={onSync}
+          className="inline-flex items-center justify-center gap-2 rounded-lg border border-cyan-300/20 bg-cyan-400/10 px-3 py-2 font-orbitron text-[10px] uppercase tracking-widest text-cyan-100"
+        >
+          <Satellite className="h-3.5 w-3.5" />
+          Display
+        </button>
+      </div>
+    </motion.section>
   );
 }
 
