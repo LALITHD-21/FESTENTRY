@@ -23,7 +23,7 @@ const statusStyle = {
   },
 };
 
-const PDF_SIGNATURE = 'MADE BY VAISIRI STUDENTS (TM)';
+const PDF_SIGNATURE = 'MADE BY VAISIRI STUDENTS | ALL RIGHTS RESERVED';
 
 export default function ScanLogs({ logs }) {
   const [filter, setFilter] = useState('all');
