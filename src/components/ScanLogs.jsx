@@ -23,6 +23,8 @@ const statusStyle = {
   },
 };
 
+const PDF_SIGNATURE = 'MADE BY VAISIRI STUDENTS (TM)';
+
 export default function ScanLogs({ logs }) {
   const [filter, setFilter] = useState('all');
   const [query, setQuery] = useState('');
@@ -55,22 +57,17 @@ export default function ScanLogs({ logs }) {
   const exportLogs = () => {
     if (filteredLogs.length === 0) return;
 
-    const header = ['status', 'name', 'pass_id', 'detail', 'scan_time'];
-    const rows = filteredLogs.map((log) => [
-      log.status,
-      log.name || '',
-      log.passId || '',
-      log.detail || '',
-      log.scanTime || log.time || '',
-    ]);
-    const csv = [header, ...rows]
-      .map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(','))
-      .join('\n');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+    const pdf = createScanLogsPdf({
+      logs: filteredLogs,
+      totals: counts,
+      filter,
+      query,
+    });
+    const blob = new Blob([pdf], { type: 'application/pdf' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `vivan-scan-logs-${new Date().toISOString().slice(0, 10)}.csv`;
+    link.download = `vivan-scan-logs-${new Date().toISOString().slice(0, 10)}.pdf`;
     document.body.appendChild(link);
     link.click();
     link.remove();
@@ -91,7 +88,7 @@ export default function ScanLogs({ logs }) {
           className="inline-flex min-h-8 items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 font-orbitron text-[10px] uppercase tracking-widest text-white/50 disabled:cursor-not-allowed disabled:opacity-35"
         >
           <Download className="h-3.5 w-3.5" />
-          CSV
+          PDF
         </button>
       </div>
 
@@ -173,6 +170,174 @@ export default function ScanLogs({ logs }) {
 function formatLogTime(value) {
   if (!value) return '';
   return new Date(value).toLocaleTimeString('en-IN', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+  });
+}
+
+function createScanLogsPdf({ logs, totals, filter, query }) {
+  const pageWidth = 595;
+  const pageHeight = 842;
+  const rowsPerPage = 22;
+  const pages = [];
+
+  for (let index = 0; index < logs.length; index += rowsPerPage) {
+    pages.push(logs.slice(index, index + rowsPerPage));
+  }
+
+  const generatedAt = new Date().toLocaleString('en-IN', {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  });
+
+  const pageStreams = pages.map((pageRows, pageIndex) => {
+    const lines = [];
+    const isLastPage = pageIndex === pages.length - 1;
+    const pageNumber = pageIndex + 1;
+
+    const text = (value, x, y, size = 10, font = 'F1') => {
+      lines.push(`BT /${font} ${size} Tf ${x} ${y} Td (${escapePdfText(value)}) Tj ET`);
+    };
+    const line = (x1, y1, x2, y2, width = 0.6) => {
+      lines.push(`${width} w ${x1} ${y1} m ${x2} ${y2} l S`);
+    };
+
+    lines.push('0.02 0.02 0.04 rg');
+    lines.push(`0 0 ${pageWidth} ${pageHeight} re f`);
+    lines.push('1 1 1 rg');
+    text('VIVAN VAIVIDHYA', 40, 790, 24, 'F2');
+    text('QR EVENT CHECK-IN SCAN LOG REPORT', 40, 768, 11, 'F2');
+    text(`Generated: ${generatedAt}`, 390, 790, 9, 'F1');
+    text(`Rows: ${logs.length}`, 390, 774, 9, 'F1');
+
+    lines.push('0.95 0.05 0.78 rg');
+    line(40, 748, 555, 748, 1.4);
+    lines.push('1 1 1 rg');
+    text(`Filter: ${filter.toUpperCase()}   Search: ${query.trim() || 'NONE'}`, 40, 726, 9, 'F1');
+    text(
+      `All ${totals.all || 0} | Success ${totals.success || 0} | Duplicate ${totals.duplicate || 0} | Invalid ${totals.invalid || 0}`,
+      40,
+      710,
+      9,
+      'F1'
+    );
+
+    lines.push('0.1 0.85 0.95 rg');
+    text('STATUS', 42, 680, 8, 'F2');
+    text('NAME', 108, 680, 8, 'F2');
+    text('PASS ID', 252, 680, 8, 'F2');
+    text('TIME', 358, 680, 8, 'F2');
+    text('DETAIL', 438, 680, 8, 'F2');
+    lines.push('0.5 0.5 0.58 rg');
+    line(40, 672, 555, 672);
+
+    pageRows.forEach((log, rowIndex) => {
+      const y = 650 - rowIndex * 23;
+      const status = normalizePdfText(log.status || '').toUpperCase();
+      const rowTime = formatPdfDateTime(log.scanTime) || log.time || '';
+
+      if (rowIndex % 2 === 0) {
+        lines.push('0.07 0.06 0.1 rg');
+        lines.push(`40 ${y - 7} 515 18 re f`);
+      }
+
+      lines.push('1 1 1 rg');
+      text(fitPdfText(status, 10), 42, y, 8, 'F2');
+      text(fitPdfText(log.name || log.passId || 'Unknown', 24), 108, y, 8, 'F1');
+      text(fitPdfText(log.passId || '-', 16), 252, y, 8, 'F1');
+      text(fitPdfText(rowTime, 15), 358, y, 8, 'F1');
+      text(fitPdfText(log.detail || '-', 21), 438, y, 8, 'F1');
+    });
+
+    lines.push('0.45 0.45 0.52 rg');
+    line(40, 82, 555, 82);
+    lines.push('1 1 1 rg');
+    text(`Page ${pageNumber} of ${pages.length}`, 40, 62, 8, 'F1');
+
+    if (isLastPage) {
+      lines.push('0.98 0.78 0.28 rg');
+      text(PDF_SIGNATURE, 350, 62, 11, 'F2');
+    } else {
+      lines.push('0.62 0.62 0.68 rg');
+      text(PDF_SIGNATURE, 388, 62, 8, 'F1');
+    }
+
+    return lines.join('\n');
+  });
+
+  return buildPdfDocument(pageStreams);
+}
+
+function buildPdfDocument(pageStreams) {
+  const objects = [];
+  const addObject = (content) => {
+    objects.push(content);
+    return objects.length;
+  };
+
+  const catalogId = addObject('');
+  const pagesId = addObject('');
+  const regularFontId = addObject('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>');
+  const boldFontId = addObject('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>');
+  const pageIds = [];
+
+  pageStreams.forEach((stream) => {
+    const contentId = addObject(`<< /Length ${stream.length} >>\nstream\n${stream}\nendstream`);
+    const pageId = addObject(
+      `<< /Type /Page /Parent ${pagesId} 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 ${regularFontId} 0 R /F2 ${boldFontId} 0 R >> >> /Contents ${contentId} 0 R >>`
+    );
+    pageIds.push(pageId);
+  });
+
+  objects[catalogId - 1] = `<< /Type /Catalog /Pages ${pagesId} 0 R >>`;
+  objects[pagesId - 1] = `<< /Type /Pages /Kids [${pageIds.map((id) => `${id} 0 R`).join(' ')}] /Count ${pageIds.length} >>`;
+
+  let pdf = '%PDF-1.4\n';
+  const offsets = [0];
+
+  objects.forEach((object, index) => {
+    offsets.push(pdf.length);
+    pdf += `${index + 1} 0 obj\n${object}\nendobj\n`;
+  });
+
+  const xrefStart = pdf.length;
+  pdf += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`;
+  for (let index = 1; index <= objects.length; index += 1) {
+    pdf += `${String(offsets[index]).padStart(10, '0')} 00000 n \n`;
+  }
+  pdf += `trailer\n<< /Size ${objects.length + 1} /Root ${catalogId} 0 R >>\nstartxref\n${xrefStart}\n%%EOF`;
+
+  return pdf;
+}
+
+function fitPdfText(value, maxLength) {
+  const text = normalizePdfText(value);
+  if (text.length <= maxLength) return text;
+  return `${text.slice(0, Math.max(0, maxLength - 3))}...`;
+}
+
+function normalizePdfText(value) {
+  return String(value || '')
+    .replace(/[\r\n\t]+/g, ' ')
+    .replace(/[^\x20-\x7E]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function escapePdfText(value) {
+  return normalizePdfText(value).replace(/\\/g, '\\\\').replace(/\(/g, '\\(').replace(/\)/g, '\\)');
+}
+
+function formatPdfDateTime(value) {
+  if (!value) return '';
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return String(value);
+
+  return date.toLocaleString('en-IN', {
+    day: '2-digit',
+    month: 'short',
     hour: '2-digit',
     minute: '2-digit',
     hour12: true,
