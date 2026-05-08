@@ -237,6 +237,35 @@ button {
   mix-blend-mode: screen;
 }
 
+.welcome-firework-halo {
+  z-index: 2;
+  pointer-events: none;
+  background:
+    radial-gradient(circle, rgba(255, 255, 255, 0.32) 0 20%, transparent 21%),
+    conic-gradient(from 12deg, rgba(255, 0, 229, 0.92), rgba(247, 196, 92, 0.95), rgba(255, 255, 255, 0.9), rgba(0, 245, 255, 0.74), rgba(255, 0, 229, 0.92));
+  filter:
+    blur(2px)
+    drop-shadow(0 0 16px rgba(247, 196, 92, 0.56))
+    drop-shadow(0 0 30px rgba(255, 0, 229, 0.44));
+  mix-blend-mode: screen;
+}
+
+.welcome-spark {
+  z-index: 5;
+  aspect-ratio: 1 / 1;
+  pointer-events: none;
+  border-radius: 999px;
+  background:
+    radial-gradient(circle, #fff 0 13%, rgba(255, 243, 194, 0.96) 14% 25%, rgba(255, 0, 229, 0.68) 26% 44%, transparent 45%),
+    linear-gradient(90deg, transparent 42%, rgba(255, 255, 255, 0.92) 43% 57%, transparent 58%),
+    linear-gradient(0deg, transparent 42%, rgba(0, 245, 255, 0.68) 43% 57%, transparent 58%);
+  box-shadow:
+    0 0 12px rgba(255, 255, 255, 0.86),
+    0 0 22px rgba(247, 196, 92, 0.52),
+    0 0 38px rgba(255, 0, 229, 0.34);
+  mix-blend-mode: screen;
+}
+
 .poster-name-slot {
   pointer-events: none;
   z-index: 4;

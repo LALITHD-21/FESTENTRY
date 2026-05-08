@@ -105,27 +105,26 @@ export function playWarningAnnouncementTone() {
   return true;
 }
 
-export function playThreeSecondWarningSiren({ delay = 2.05 } = {}) {
+export function playThreeSecondWarningSiren({ delay = 2.05, duration = 3, volume = 0.14 } = {}) {
   const ctx = getAudioContext();
   if (!ctx) return false;
 
-  const duration = 3;
   const startAt = ctx.currentTime + delay;
   const endAt = startAt + duration;
   const osc = ctx.createOscillator();
   const gain = ctx.createGain();
 
-  osc.type = 'sawtooth';
+  osc.type = 'triangle';
   gain.gain.setValueAtTime(0.001, startAt);
-  gain.gain.linearRampToValueAtTime(0.14, startAt + 0.08);
+  gain.gain.linearRampToValueAtTime(volume, startAt + 0.18);
 
-  for (let time = startAt; time < endAt; time += 0.5) {
-    osc.frequency.setValueAtTime(620, time);
-    osc.frequency.linearRampToValueAtTime(320, Math.min(time + 0.25, endAt));
-    osc.frequency.linearRampToValueAtTime(620, Math.min(time + 0.5, endAt));
+  for (let time = startAt; time < endAt; time += 0.72) {
+    osc.frequency.setValueAtTime(430, time);
+    osc.frequency.linearRampToValueAtTime(250, Math.min(time + 0.36, endAt));
+    osc.frequency.linearRampToValueAtTime(430, Math.min(time + 0.72, endAt));
   }
 
-  gain.gain.setValueAtTime(0.14, endAt - 0.12);
+  gain.gain.setValueAtTime(volume, endAt - 0.22);
   gain.gain.linearRampToValueAtTime(0.001, endAt);
 
   osc.connect(gain);
@@ -157,7 +156,8 @@ function speakLine(text, options = {}) {
   utterance.rate = options.rate ?? 0.88;
   utterance.pitch = options.pitch ?? 1.04;
 
-  synth.cancel();
+  if (options.interrupt !== false) synth.cancel();
+  synth.resume?.();
   window.setTimeout(() => synth.speak(utterance), options.delay ?? 140);
   return true;
 }
@@ -176,20 +176,21 @@ export function announcePermitted(name) {
   playRadioPermittedTone();
   return speakLine(studentName ? `Permitted. ${studentName}.` : 'Permitted.', {
     delay: 260,
-    rate: 0.78,
+    rate: 0.82,
     pitch: 0.78,
     volume: 1,
+    interrupt: false,
   });
 }
 
 export function announceAlreadyCheckedIn(name) {
   playWarningAnnouncementTone();
-  playThreeSecondWarningSiren();
+  playThreeSecondWarningSiren({ delay: 1.1, duration: 2.25, volume: 0.075 });
   return speakLine('Denied. Already scanned.', {
     delay: 130,
-    rate: 0.82,
+    rate: 0.76,
     pitch: 0.95,
-    volume: 1,
+    volume: 0.88,
   });
 }
 

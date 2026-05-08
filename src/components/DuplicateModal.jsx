@@ -5,19 +5,40 @@ import warningSound from '../assets/warning.mp3';
 
 function playWarningSound() {
   const audio = new Audio(warningSound);
-  audio.volume = 0.95;
+  audio.volume = 0.32;
+  audio.playbackRate = 0.82;
   audio.play().catch(() => {});
+
+  const fadeDelay = window.setTimeout(() => {
+    const fade = window.setInterval(() => {
+      audio.volume = Math.max(0, audio.volume - 0.045);
+      if (audio.volume <= 0.02) {
+        window.clearInterval(fade);
+        audio.pause();
+        audio.currentTime = 0;
+      }
+    }, 80);
+  }, 1800);
+
+  return () => {
+    window.clearTimeout(fadeDelay);
+    audio.pause();
+    audio.currentTime = 0;
+  };
 }
 
 export default function DuplicateModal({ open, student, onClose }) {
   useEffect(() => {
     if (!open) return undefined;
 
-    playWarningSound();
+    const stopWarningSound = playWarningSound();
     if (navigator.vibrate) navigator.vibrate([180, 90, 180, 90, 260]);
     const timer = window.setTimeout(onClose, 4200);
 
-    return () => window.clearTimeout(timer);
+    return () => {
+      stopWarningSound?.();
+      window.clearTimeout(timer);
+    };
   }, [open, onClose]);
 
   return (

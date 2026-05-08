@@ -17,6 +17,18 @@ const DEFAULT_ALIGNMENT = {
   nameHeight: 8.05,
 };
 
+const SPARKLE_POINTS = [
+  { x: -0.82, y: -0.56, size: 0.42, delay: 0.08 },
+  { x: -0.38, y: -0.9, size: 0.32, delay: 0.18 },
+  { x: 0.2, y: -0.96, size: 0.48, delay: 0.02 },
+  { x: 0.76, y: -0.55, size: 0.36, delay: 0.28 },
+  { x: 0.96, y: 0.02, size: 0.44, delay: 0.16 },
+  { x: 0.66, y: 0.62, size: 0.34, delay: 0.38 },
+  { x: 0.0, y: 0.92, size: 0.4, delay: 0.34 },
+  { x: -0.68, y: 0.5, size: 0.3, delay: 0.48 },
+  { x: -0.98, y: -0.02, size: 0.46, delay: 0.24 },
+];
+
 function readAlignment() {
   try {
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
@@ -53,24 +65,101 @@ export default function PosterOverlay({ student }) {
     () => slotStyle(alignment.nameLeft, alignment.nameTop, alignment.nameWidth, alignment.nameHeight),
     [alignment]
   );
+  const sparkles = useMemo(() => {
+    const centerX = alignment.photoLeft + alignment.photoWidth / 2;
+    const centerY = alignment.photoTop + alignment.photoHeight / 2;
+
+    return SPARKLE_POINTS.map((point) => ({
+      ...point,
+      left: centerX + point.x * alignment.photoWidth * 0.62,
+      top: centerY + point.y * alignment.photoHeight * 0.62,
+    }));
+  }, [alignment]);
 
   useEffect(() => {
     if (!student?.updated_at || previousStamp.current === student.updated_at) return;
     previousStamp.current = student.updated_at;
 
     const rect = frameRef.current?.getBoundingClientRect();
-    const origin = rect
-      ? {
-          x: (rect.left + rect.width * (alignment.photoLeft + alignment.photoWidth / 2) / 100) / window.innerWidth,
-          y: (rect.top + rect.height * (alignment.photoTop + alignment.photoHeight / 2) / 100) / window.innerHeight,
-        }
-      : { x: 0.81, y: 0.4 };
+    const frameOrigin = (left, top) =>
+      rect
+        ? {
+            x: (rect.left + rect.width * left / 100) / window.innerWidth,
+            y: (rect.top + rect.height * top / 100) / window.innerHeight,
+          }
+        : { x: left / 100, y: top / 100 };
 
-    const colors = ['#00f5ff', '#ff00e5', '#f7c45c', '#ffffff', '#8b5cf6'];
-    confetti({ particleCount: 140, spread: 100, origin, colors, startVelocity: 52, zIndex: 10000 });
-    window.setTimeout(() => {
-      confetti({ particleCount: 75, spread: 80, origin, colors, startVelocity: 38, zIndex: 10000 });
-    }, 420);
+    const photoOrigin = frameOrigin(
+      alignment.photoLeft + alignment.photoWidth / 2,
+      alignment.photoTop + alignment.photoHeight / 2
+    );
+    const nameOrigin = frameOrigin(
+      alignment.nameLeft + alignment.nameWidth / 2,
+      alignment.nameTop + alignment.nameHeight / 2
+    );
+    const leftOrigin = frameOrigin(alignment.photoLeft + 1.7, alignment.photoTop + alignment.photoHeight * 0.78);
+    const rightOrigin = frameOrigin(alignment.photoLeft + alignment.photoWidth - 1.7, alignment.photoTop + alignment.photoHeight * 0.78);
+
+    const colors = ['#ffffff', '#ffe9a8', '#f7c45c', '#ff00e5', '#c084fc', '#00f5ff'];
+    const gold = ['#ffffff', '#fff2c2', '#f7c45c', '#ffb347'];
+    const neon = ['#ff00e5', '#c084fc', '#00f5ff', '#ffffff'];
+    const timers = [];
+    const launch = (delay, options) => {
+      timers.push(window.setTimeout(() => confetti({ zIndex: 10000, ...options }), delay));
+    };
+
+    launch(0, {
+      particleCount: 170,
+      spread: 118,
+      origin: photoOrigin,
+      colors,
+      startVelocity: 58,
+      ticks: 180,
+      gravity: 0.82,
+      scalar: 1,
+    });
+    launch(140, {
+      particleCount: 70,
+      angle: 58,
+      spread: 58,
+      origin: leftOrigin,
+      colors: neon,
+      startVelocity: 46,
+      ticks: 150,
+      scalar: 0.82,
+    });
+    launch(140, {
+      particleCount: 70,
+      angle: 122,
+      spread: 58,
+      origin: rightOrigin,
+      colors: neon,
+      startVelocity: 46,
+      ticks: 150,
+      scalar: 0.82,
+    });
+    launch(380, {
+      particleCount: 105,
+      spread: 360,
+      origin: photoOrigin,
+      colors: gold,
+      startVelocity: 28,
+      ticks: 220,
+      gravity: 0.48,
+      decay: 0.92,
+      scalar: 0.68,
+    });
+    launch(660, {
+      particleCount: 72,
+      spread: 92,
+      origin: nameOrigin,
+      colors,
+      startVelocity: 36,
+      ticks: 165,
+      scalar: 0.76,
+    });
+
+    return () => timers.forEach((timer) => window.clearTimeout(timer));
   }, [alignment, student]);
 
   const updateAlignment = (key, value) => {
@@ -104,6 +193,33 @@ export default function PosterOverlay({ student }) {
                 animate={{ x: '130%', opacity: [0, 0.9, 0] }}
                 transition={{ duration: 1.15, ease: [0.16, 1, 0.3, 1] }}
               />
+              <motion.div
+                className="welcome-firework-halo absolute rounded-full"
+                style={photoSlot}
+                initial={{ opacity: 0, scale: 0.72 }}
+                animate={{ opacity: [0, 0.88, 0.46, 0], scale: [0.72, 1.16, 1.34, 1.46] }}
+                transition={{ duration: 1.55, ease: [0.16, 1, 0.3, 1] }}
+              />
+              {sparkles.map((sparkle, index) => (
+                <motion.span
+                  key={`${student.updated_at || student.name}-spark-${index}`}
+                  className="welcome-spark absolute"
+                  style={{
+                    left: `${sparkle.left}%`,
+                    top: `${sparkle.top}%`,
+                    width: `${sparkle.size}%`,
+                  }}
+                  initial={{ opacity: 0, scale: 0.16, rotate: -25, x: '-50%', y: '-50%' }}
+                  animate={{
+                    opacity: [0, 1, 0.72, 0],
+                    scale: [0.16, 1.3, 0.84, 0.08],
+                    rotate: [-25, 18, 62],
+                    x: '-50%',
+                    y: '-50%',
+                  }}
+                  transition={{ duration: 1.35, delay: sparkle.delay, ease: [0.16, 1, 0.3, 1] }}
+                />
+              ))}
               <motion.div
                 className="poster-photo absolute rounded-full"
                 style={photoSlot}
