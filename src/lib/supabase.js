@@ -23,6 +23,7 @@ const studentColumns =
 let liveDisplayAvailable = null;
 let scanLogScannerColumnsAvailable = null;
 let scannerSessionsAvailable = null;
+let scannerControlAvailable = null;
 
 const scanLogColumns = 'id,receipt_id,scan_time,status,created_at,scanner_id,scanner_name';
 const legacyScanLogColumns = 'id,receipt_id,scan_time,status,created_at';
@@ -362,6 +363,56 @@ export async function fetchScannerSessions() {
   }));
 }
 
+export async function fetchScannerResetAt() {
+  if (!supabase || scannerControlAvailable === false) return null;
+
+  const { data, error } = await supabase
+    .from('scanner_control')
+    .select('reset_at')
+    .eq('id', 'scanner-members')
+    .maybeSingle();
+
+  if (error) {
+    if (isMissingSchemaFeature(error)) scannerControlAvailable = false;
+    return null;
+  }
+
+  scannerControlAvailable = true;
+  return data?.reset_at || null;
+}
+
+export async function resetAllScannerMembers() {
+  requireSupabase();
+
+  const resetAt = new Date().toISOString();
+
+  if (scannerControlAvailable !== false) {
+    const controlResult = await supabase
+      .from('scanner_control')
+      .upsert({ id: 'scanner-members', reset_at: resetAt }, { onConflict: 'id' });
+
+    if (controlResult.error) {
+      if (isMissingSchemaFeature(controlResult.error)) {
+        scannerControlAvailable = false;
+      } else {
+        throw new Error(controlResult.error.message || 'Unable to reset scanner members.');
+      }
+    } else {
+      scannerControlAvailable = true;
+    }
+  }
+
+  const { error } = await supabase
+    .from('scanner_sessions')
+    .delete()
+    .neq('scanner_id', '__never__');
+
+  if (error) throw new Error(error.message || 'Unable to clear scanner member sessions.');
+
+  scannerSessionsAvailable = true;
+  return { resetAt };
+}
+
 export async function publishLiveDisplay(student) {
   if (!supabase || !student) return false;
 
@@ -486,6 +537,21 @@ export function subscribeToScannerSessions(onChange) {
   return () => supabase.removeChannel(channel);
 }
 
+export function subscribeToScannerControl(onChange) {
+  if (!supabase || scannerControlAvailable === false) return () => {};
+
+  const channel = supabase
+    .channel(`scanner-control-${Date.now()}`)
+    .on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: 'scanner_control' },
+      () => onChange?.()
+    )
+    .subscribe();
+
+  return () => supabase.removeChannel(channel);
+}
+
 export function subscribeToSuccessfulScanLogs(onScan) {
   if (!supabase) return () => {};
 
@@ -570,6 +636,7 @@ function isMissingSchemaFeature(error) {
     message.includes('schema cache') ||
     message.includes('scanner_id') ||
     message.includes('scanner_sessions') ||
+    message.includes('scanner_control') ||
     message.includes('column') ||
     message.includes('relation')
   );

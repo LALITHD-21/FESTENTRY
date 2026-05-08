@@ -110,6 +110,73 @@ begin
       using (true)
       with check (true);
   end if;
+
+  if not exists (
+    select 1
+    from pg_policies
+    where schemaname = 'public'
+      and tablename = 'scanner_sessions'
+      and policyname = 'scanner_sessions_delete_all'
+  ) then
+    create policy scanner_sessions_delete_all
+      on public.scanner_sessions
+      for delete
+      to anon
+      using (true);
+  end if;
+end $$;
+
+create table if not exists public.scanner_control (
+  id text primary key,
+  reset_at timestamp with time zone not null default now()
+);
+
+alter table public.scanner_control enable row level security;
+
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_policies
+    where schemaname = 'public'
+      and tablename = 'scanner_control'
+      and policyname = 'scanner_control_select_all'
+  ) then
+    create policy scanner_control_select_all
+      on public.scanner_control
+      for select
+      to anon
+      using (true);
+  end if;
+
+  if not exists (
+    select 1
+    from pg_policies
+    where schemaname = 'public'
+      and tablename = 'scanner_control'
+      and policyname = 'scanner_control_insert_all'
+  ) then
+    create policy scanner_control_insert_all
+      on public.scanner_control
+      for insert
+      to anon
+      with check (true);
+  end if;
+
+  if not exists (
+    select 1
+    from pg_policies
+    where schemaname = 'public'
+      and tablename = 'scanner_control'
+      and policyname = 'scanner_control_update_all'
+  ) then
+    create policy scanner_control_update_all
+      on public.scanner_control
+      for update
+      to anon
+      using (true)
+      with check (true);
+  end if;
 end $$;
 
 do $$
@@ -132,5 +199,15 @@ begin
       and tablename = 'scanner_sessions'
   ) then
     alter publication supabase_realtime add table public.scanner_sessions;
+  end if;
+
+  if not exists (
+    select 1
+    from pg_publication_tables
+    where pubname = 'supabase_realtime'
+      and schemaname = 'public'
+      and tablename = 'scanner_control'
+  ) then
+    alter publication supabase_realtime add table public.scanner_control;
   end if;
 end $$;

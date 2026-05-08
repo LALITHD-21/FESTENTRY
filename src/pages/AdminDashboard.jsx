@@ -19,6 +19,7 @@ import {
   fetchScanLogs,
   fetchScannerSessions,
   isSupabaseConfigured,
+  resetAllScannerMembers,
   subscribeToScanLogs,
   subscribeToScannerSessions,
 } from '../lib/supabase';
@@ -31,7 +32,9 @@ export default function AdminDashboard() {
   const [selectedScanner, setSelectedScanner] = useState('all');
   const [query, setQuery] = useState('');
   const [loading, setLoading] = useState(true);
+  const [resettingMembers, setResettingMembers] = useState(false);
   const [schemaWarning, setSchemaWarning] = useState('');
+  const [notice, setNotice] = useState('');
 
   useEffect(() => {
     const timer = window.setInterval(() => setClock(new Date()), 1000);
@@ -129,6 +132,30 @@ export default function AdminDashboard() {
     setAdminSession(null);
   };
 
+  const handleResetMembers = async () => {
+    if (resettingMembers) return;
+
+    const confirmed = window.confirm(
+      'Reset all scanner members? This will erase the live member login list and force scanner phones to login fresh. Scan history will not be deleted.'
+    );
+    if (!confirmed) return;
+
+    setResettingMembers(true);
+    setNotice('');
+
+    try {
+      await resetAllScannerMembers();
+      setSessions([]);
+      setSelectedScanner('all');
+      setNotice('All scanner members were reset. Phones must login again with the new VIMTECH passwords.');
+      await loadAdminData();
+    } catch (error) {
+      setSchemaWarning(error?.message || 'Unable to reset scanner members.');
+    } finally {
+      setResettingMembers(false);
+    }
+  };
+
   if (!adminSession) {
     return <ScannerLogin mode="admin" onLogin={setAdminSession} />;
   }
@@ -150,6 +177,16 @@ export default function AdminDashboard() {
           </div>
 
           <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleResetMembers}
+              disabled={resettingMembers}
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-red-300/25 bg-red-500/10 px-3 py-2 font-orbitron text-[10px] uppercase tracking-widest text-red-100 transition active:scale-[0.98] disabled:cursor-wait disabled:opacity-60"
+              title="Reset all scanner members"
+            >
+              <Users className="h-4 w-4" />
+              {resettingMembers ? 'Resetting' : 'Reset Members'}
+            </button>
             <div className="rounded-lg border border-cyan-300/20 bg-cyan-400/10 px-3 py-2 text-right">
               <p className="font-orbitron text-[10px] uppercase tracking-[0.2em] text-cyan-100/65">Live Time</p>
               <p className="mt-1 font-orbitron text-sm text-white">{formatTime(clock)}</p>
@@ -176,6 +213,12 @@ export default function AdminDashboard() {
         {schemaWarning && (
           <section className="rounded-lg border border-amber-300/25 bg-amber-400/10 p-3 text-sm text-amber-100">
             {schemaWarning}
+          </section>
+        )}
+
+        {notice && (
+          <section className="rounded-lg border border-emerald-300/25 bg-emerald-400/10 p-3 text-sm text-emerald-100">
+            {notice}
           </section>
         )}
 

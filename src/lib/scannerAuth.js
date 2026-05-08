@@ -1,14 +1,14 @@
 export const SCANNER_ACCOUNTS = [
-  { id: 'S01', password: 'VIVAN@01', label: 'Gate Scanner 01' },
-  { id: 'S02', password: 'VIVAN@02', label: 'Gate Scanner 02' },
-  { id: 'S03', password: 'VIVAN@03', label: 'Gate Scanner 03' },
-  { id: 'S04', password: 'VIVAN@04', label: 'Gate Scanner 04' },
-  { id: 'S05', password: 'VIVAN@05', label: 'Gate Scanner 05' },
-  { id: 'S06', password: 'VIVAN@06', label: 'Gate Scanner 06' },
-  { id: 'S07', password: 'VIVAN@07', label: 'Gate Scanner 07' },
-  { id: 'S08', password: 'VIVAN@08', label: 'Gate Scanner 08' },
-  { id: 'S09', password: 'VIVAN@09', label: 'Gate Scanner 09' },
-  { id: 'S10', password: 'VIVAN@10', label: 'Gate Scanner 10' },
+  { id: 'S01', password: 'VIMTECH@01', label: 'Gate Scanner 01' },
+  { id: 'S02', password: 'VIMTECH@02', label: 'Gate Scanner 02' },
+  { id: 'S03', password: 'VIMTECH@03', label: 'Gate Scanner 03' },
+  { id: 'S04', password: 'VIMTECH@04', label: 'Gate Scanner 04' },
+  { id: 'S05', password: 'VIMTECH@05', label: 'Gate Scanner 05' },
+  { id: 'S06', password: 'VIMTECH@06', label: 'Gate Scanner 06' },
+  { id: 'S07', password: 'VIMTECH@07', label: 'Gate Scanner 07' },
+  { id: 'S08', password: 'VIMTECH@08', label: 'Gate Scanner 08' },
+  { id: 'S09', password: 'VIMTECH@09', label: 'Gate Scanner 09' },
+  { id: 'S10', password: 'VIMTECH@10', label: 'Gate Scanner 10' },
 ];
 
 export const ADMIN_ACCOUNT = {
@@ -20,10 +20,10 @@ const SCANNER_SESSION_KEY = 'vivan-scanner-member-session';
 const ADMIN_SESSION_KEY = 'vivan-admin-session';
 
 export function authenticateScanner(scannerId, password, scannerName) {
-  const normalizedId = String(scannerId || '').trim().toUpperCase();
+  const normalizedId = normalizeScannerId(scannerId);
   const account = SCANNER_ACCOUNTS.find((item) => item.id === normalizedId);
 
-  if (!account || account.password !== String(password || '').trim()) {
+  if (!account || !isScannerPasswordValid(account, password)) {
     throw new Error('Invalid scanner ID or password.');
   }
 
@@ -38,6 +38,25 @@ export function authenticateScanner(scannerId, password, scannerName) {
     scanner_label: account.label,
     login_at: new Date().toISOString(),
   };
+}
+
+export function normalizeScannerId(value) {
+  const raw = String(value || '').trim().toUpperCase().replace(/\s+/g, '');
+  const match = raw.match(/^S?(\d{1,2})$/);
+  if (!match) return raw;
+
+  const scannerNumber = Number(match[1]);
+  if (scannerNumber < 1 || scannerNumber > 10) return raw;
+
+  return `S${String(scannerNumber).padStart(2, '0')}`;
+}
+
+function isScannerPasswordValid(account, password) {
+  const typedPassword = String(password || '').trim();
+  const scannerNumber = Number(account.id.replace('S', ''));
+  const shortPassword = `VIMTECH@${scannerNumber}`;
+
+  return typedPassword === account.password || typedPassword === shortPassword;
 }
 
 export function authenticateAdmin(adminId, password) {
