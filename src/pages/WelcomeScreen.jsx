@@ -29,7 +29,6 @@ function normalizeDisplayStudent(student, fallback = {}) {
 export default function WelcomeScreen() {
   const [student, setStudent] = useState(null);
   const [queue, setQueue] = useState([]);
-  const [recentScans, setRecentScans] = useState([]);
   const [isShowing, setIsShowing] = useState(false);
   const [status, setStatus] = useState(isSupabaseConfigured ? 'Connecting' : 'Missing Supabase env');
   const [soundEnabled, setSoundEnabled] = useState(() => {
@@ -41,35 +40,24 @@ export default function WelcomeScreen() {
   const recentSignatures = useRef(new Map());
   const playbackTimer = useRef(null);
 
-  const rememberRecentStudent = useCallback((displayStudent) => {
-    setRecentScans((previous) => {
-      const signature = `${displayStudent.name}|${displayStudent.photo_url}`;
-      return [displayStudent, ...previous.filter((item) => `${item.name}|${item.photo_url}` !== signature)].slice(0, 10);
-    });
+  const enqueueStudent = useCallback((nextStudent, fallback = {}) => {
+    const displayStudent = normalizeDisplayStudent(nextStudent, fallback);
+    if (!displayStudent) return;
+
+    const now = Date.now();
+    const signature = `${displayStudent.name}|${displayStudent.photo_url}`.toLowerCase();
+    const lastSeen = recentSignatures.current.get(signature);
+
+    if (lastSeen && now - lastSeen < 6500) return;
+
+    recentSignatures.current.set(signature, now);
+    for (const [key, value] of recentSignatures.current.entries()) {
+      if (now - value > 30000) recentSignatures.current.delete(key);
+    }
+
+    setQueue((previous) => [...previous, displayStudent].slice(-25));
+    setStatus('Queue Live');
   }, []);
-
-  const enqueueStudent = useCallback(
-    (nextStudent, fallback = {}) => {
-      const displayStudent = normalizeDisplayStudent(nextStudent, fallback);
-      if (!displayStudent) return;
-
-      const now = Date.now();
-      const signature = `${displayStudent.name}|${displayStudent.photo_url}`.toLowerCase();
-      const lastSeen = recentSignatures.current.get(signature);
-
-      if (lastSeen && now - lastSeen < 6500) return;
-
-      recentSignatures.current.set(signature, now);
-      for (const [key, value] of recentSignatures.current.entries()) {
-        if (now - value > 30000) recentSignatures.current.delete(key);
-      }
-
-      rememberRecentStudent(displayStudent);
-      setQueue((previous) => [...previous, displayStudent].slice(-25));
-      setStatus('Queue Live');
-    },
-    [rememberRecentStudent]
-  );
 
   async function pullLatestStudent() {
     if (!isSupabaseConfigured) return;
@@ -81,7 +69,6 @@ export default function WelcomeScreen() {
         const displayStudent = normalizeDisplayStudent(latest, { updated_at: latest.updated_at || new Date().toISOString() });
         if (displayStudent) {
           setStudent(displayStudent);
-          rememberRecentStudent(displayStudent);
         }
       }
       setStatus('Queue Live');
@@ -117,7 +104,6 @@ export default function WelcomeScreen() {
           if (displayStudent) {
             announcedStamp.current = displayStudent.updated_at || '';
             setStudent(displayStudent);
-            rememberRecentStudent(displayStudent);
           }
         }
         if (alive) setStatus('Queue Live');
@@ -157,7 +143,7 @@ export default function WelcomeScreen() {
       alive = false;
       unsubscribe();
     };
-  }, [enqueueStudent, rememberRecentStudent]);
+  }, [enqueueStudent]);
 
   useEffect(() => {
     if (isShowing || queue.length === 0 || playbackTimer.current) return;
@@ -222,8 +208,6 @@ export default function WelcomeScreen() {
         )}
       </AnimatePresence>
 
-      <LiveFilmStrip scans={recentScans} />
-
       <button
         type="button"
         className="absolute bottom-5 left-5 z-30 inline-flex items-center gap-2 rounded-lg border border-cyan-300/20 bg-black/55 px-3 py-2 font-orbitron text-[10px] uppercase tracking-widest text-cyan-100/80 backdrop-blur-xl transition hover:border-cyan-200/45 hover:text-cyan-50"
@@ -246,46 +230,5 @@ export default function WelcomeScreen() {
         {soundEnabled ? 'Sound On' : 'Enable Sound'}
       </button>
     </div>
-  );
-}
-
-function LiveFilmStrip({ scans }) {
-  if (scans.length === 0) return null;
-
-  return (
-    <motion.div
-      className="pointer-events-none absolute bottom-16 left-1/2 z-20 flex w-[min(92vw,980px)] -translate-x-1/2 items-center gap-2 overflow-hidden rounded-lg border border-white/10 bg-black/35 p-2 backdrop-blur-xl"
-      initial={{ opacity: 0, y: 18 }}
-      animate={{ opacity: 1, y: 0 }}
-    >
-      <div className="flex shrink-0 items-center gap-2 px-2 font-orbitron text-[9px] uppercase tracking-widest text-white/45">
-        <Film className="h-3.5 w-3.5 text-purple-100" />
-        Live Roll
-      </div>
-      <div className="flex min-w-0 flex-1 gap-2 overflow-hidden">
-        <AnimatePresence initial={false}>
-          {scans.slice(0, 10).map((scan) => (
-            <motion.div
-              key={`${scan.name}-${scan.updated_at}`}
-              className="flex min-w-[112px] max-w-[150px] items-center gap-2 rounded-md border border-white/10 bg-white/[0.055] p-1.5"
-              initial={{ opacity: 0, x: 22, scale: 0.94 }}
-              animate={{ opacity: 1, x: 0, scale: 1 }}
-              exit={{ opacity: 0, x: -16, scale: 0.94 }}
-            >
-              <div className="h-9 w-9 shrink-0 overflow-hidden rounded-md bg-purple-950/80">
-                {scan.photo_url ? (
-                  <img src={scan.photo_url} alt="" className="h-full w-full object-cover" />
-                ) : (
-                  <div className="flex h-full w-full items-center justify-center font-orbitron text-sm font-black text-white">
-                    {scan.name[0]?.toUpperCase()}
-                  </div>
-                )}
-              </div>
-              <p className="min-w-0 truncate text-[11px] font-semibold text-white/86">{scan.name}</p>
-            </motion.div>
-          ))}
-        </AnimatePresence>
-      </div>
-    </motion.div>
   );
 }

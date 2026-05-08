@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import confetti from 'canvas-confetti';
-import { RotateCcw, SlidersHorizontal } from 'lucide-react';
+import { RotateCcw } from 'lucide-react';
 import concertPoster from '../assets/concert-poster.png';
 
 const STORAGE_KEY = 'vivan-poster-alignment-v4';
@@ -93,16 +93,18 @@ export default function PosterOverlay({ student }) {
             <motion.div
               key={`${student.name}-${student.updated_at || ''}`}
               className="absolute inset-0"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
+              initial={{ opacity: 0, scale: 0.985, filter: 'blur(10px)' }}
+              animate={{ opacity: 1, scale: 1, filter: 'blur(0px)' }}
+              exit={{ opacity: 0, scale: 1.018, filter: 'blur(10px)' }}
+              transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
             >
               <motion.div
                 className="poster-photo absolute rounded-full"
                 style={photoSlot}
-                initial={{ opacity: 0, scale: 0.55, filter: 'blur(18px)' }}
-                animate={{ opacity: 1, scale: 1, filter: 'blur(0px)' }}
-                transition={{ type: 'spring', damping: 13, stiffness: 145 }}
+                initial={{ opacity: 0, scale: 0.62, y: 16, filter: 'blur(18px)' }}
+                animate={{ opacity: 1, scale: 1, y: 0, filter: 'blur(0px)' }}
+                exit={{ opacity: 0, scale: 1.06, y: -10, filter: 'blur(10px)' }}
+                transition={{ type: 'spring', damping: 14, stiffness: 150 }}
               >
                 <motion.div
                   className="absolute -inset-[4%] rounded-full bg-[conic-gradient(from_0deg,#ff00e5,#f7c45c,#ffffff,#00f5ff,#ff00e5)] blur-[3px]"
@@ -148,11 +150,11 @@ export default function PosterOverlay({ student }) {
 
       <button
         type="button"
-        className="absolute bottom-3 right-3 z-30 inline-flex h-8 w-8 items-center justify-center rounded-full border border-white/5 bg-black/25 text-white/30 opacity-35 backdrop-blur-sm transition hover:border-fuchsia-200/20 hover:text-white/80 hover:opacity-90"
+        className="absolute bottom-3 right-3 z-30 inline-flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-black/30 font-orbitron text-[11px] font-black uppercase tracking-widest text-white/35 opacity-40 backdrop-blur-sm transition hover:border-fuchsia-200/30 hover:text-white/90 hover:opacity-95"
         onClick={() => setSettingsOpen((open) => !open)}
-        title="Poster alignment"
+        title="Open alignment settings"
       >
-        <SlidersHorizontal className="h-3.5 w-3.5" />
+        A
       </button>
 
       <AnimatePresence>
@@ -165,8 +167,8 @@ export default function PosterOverlay({ student }) {
           >
             <div className="mb-3 flex items-center justify-between">
               <div>
-                <p className="font-orbitron text-xs uppercase tracking-widest text-fuchsia-100">Poster Alignment</p>
-                <p className="text-[11px] text-white/45">Tiny percentage nudges, saved here</p>
+                <p className="font-orbitron text-xs uppercase tracking-widest text-fuchsia-100">Photo & Name Alignment</p>
+                <p className="text-[11px] text-white/45">Tap A, tune the overlay, saved here</p>
               </div>
               <button
                 type="button"
