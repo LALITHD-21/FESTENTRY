@@ -4,12 +4,14 @@ import {
   Bell,
   Clock3,
   Gauge,
+  LogOut,
   Megaphone,
   Moon,
   Radio,
   RefreshCcw,
   RotateCcw,
   Satellite,
+  ShieldCheck,
   Sparkles,
   Trash2,
   UserCheck,
@@ -20,11 +22,13 @@ import AttendanceCard from '../components/AttendanceCard';
 import DuplicateModal from '../components/DuplicateModal';
 import QRScanner from '../components/QRScanner';
 import ScanLogs from '../components/ScanLogs';
+import ScannerLogin from '../components/ScannerLogin';
 import SuccessToast from '../components/SuccessToast';
 import scannerSound from '../assets/scanner.mp3';
 import successSound from '../assets/success.mp3';
 import warningSound from '../assets/warning.mp3';
 import { downloadPassListPdf } from '../lib/attendancePdf';
+import { clearScannerSession, getStoredScannerSession } from '../lib/scannerAuth';
 import { announceAlreadyCheckedIn, announcePermitted, notifyScan } from '../lib/speech';
 import {
   clearScanLogs,
@@ -37,7 +41,10 @@ import {
   publishLiveDisplay,
   quickSyncStudentToDisplay,
   resetAttendanceToZero,
+  signOutScannerSession,
   subscribeToScanLogs,
+  touchScannerSession,
+  upsertScannerSession,
 } from '../lib/supabase';
 
 function playAudio(src, fallback = 'beep') {
@@ -89,6 +96,7 @@ export default function ScannerDashboard() {
   const [fastMode, setFastMode] = useState(() => window.localStorage.getItem('vivan-fast-scan-mode') === 'true');
   const [wakeLockEnabled, setWakeLockEnabled] = useState(() => window.localStorage.getItem('vivan-keep-awake') === 'true');
   const [wakeLockActive, setWakeLockActive] = useState(false);
+  const [scannerSession, setScannerSession] = useState(() => getStoredScannerSession());
   const lockRef = useRef(false);
   const unlockTimer = useRef(null);
   const wakeLockRef = useRef(null);
@@ -163,6 +171,17 @@ export default function ScannerDashboard() {
   useEffect(() => () => window.clearTimeout(unlockTimer.current), []);
 
   useEffect(() => {
+    if (!scannerSession) return undefined;
+
+    upsertScannerSession(scannerSession);
+    const interval = window.setInterval(() => {
+      touchScannerSession(scannerSession);
+    }, 15000);
+
+    return () => window.clearInterval(interval);
+  }, [scannerSession]);
+
+  useEffect(() => {
     if (!toast) return undefined;
     const timer = window.setTimeout(() => setToast(null), toast.type === 'success' ? 2800 : 3800);
     return () => window.clearTimeout(timer);
@@ -219,6 +238,24 @@ export default function ScannerDashboard() {
       ].slice(0, 40)
     );
   }, []);
+
+  const handleScannerLogin = useCallback((session) => {
+    setScannerSession(session);
+    upsertScannerSession(session);
+    setToast({
+      type: 'success',
+      title: 'Scanner Online',
+      message: `${session.scanner_name} is live as ${session.scanner_id}.`,
+    });
+  }, []);
+
+  const handleScannerLogout = useCallback(async () => {
+    await signOutScannerSession(scannerSession);
+    clearScannerSession();
+    setScannerSession(null);
+    unlockNow();
+    setDuplicateStudent(null);
+  }, [scannerSession, unlockNow]);
 
   const startFreshScan = useCallback(() => {
     unlockNow();
@@ -418,7 +455,7 @@ export default function ScannerDashboard() {
   const handleScan = useCallback(
     async (rawPassId) => {
       const passId = String(rawPassId || '').trim();
-      if (!passId || lockRef.current || processing) return;
+      if (!passId || lockRef.current || processing || !scannerSession) return;
 
       lockRef.current = true;
       setProcessing(true);
@@ -433,7 +470,7 @@ export default function ScannerDashboard() {
         const student = await fetchStudentByPassId(passId);
 
         if (!student) {
-          await logScan(passId, 'invalid');
+          await logScan(passId, 'invalid', scannerSession);
           playAudio(warningSound, 'error');
           setCounts((previous) => ({ ...previous, invalid: previous.invalid + 1 }));
           setToast({
@@ -442,13 +479,19 @@ export default function ScannerDashboard() {
             title: 'Invalid Scan',
             message: 'No student found for this QR pass.',
           });
-          addLog({ status: 'invalid', passId, detail: 'No matching student record' });
+          addLog({
+            status: 'invalid',
+            passId,
+            detail: 'No matching student record',
+            scannerId: scannerSession.scanner_id,
+            scannerName: scannerSession.scanner_name,
+          });
           releaseLock(2600);
           return;
         }
 
         const showDuplicate = async (duplicateRecord) => {
-          await logScan(passId, 'duplicate');
+          await logScan(passId, 'duplicate', scannerSession);
           announceAlreadyCheckedIn(duplicateRecord?.name);
           void notifyScan({
             title: 'DENIED',
@@ -463,6 +506,8 @@ export default function ScannerDashboard() {
             passId,
             name: duplicateRecord?.name || student.name,
             detail: duplicateRecord?.section || student.section || 'Denied. Already scanned',
+            scannerId: scannerSession.scanner_id,
+            scannerName: scannerSession.scanner_name,
           });
           releaseLock(4200);
         };
@@ -486,7 +531,7 @@ export default function ScannerDashboard() {
         }
 
         await publishLiveDisplay(checkedInStudent);
-        await logScan(passId, 'success');
+        await logScan(passId, 'success', scannerSession);
         playAudio(successSound);
         announcePermitted(checkedInStudent.name);
         void notifyScan({
@@ -510,6 +555,8 @@ export default function ScannerDashboard() {
           passId,
           name: checkedInStudent.name,
           detail: checkedInStudent.section || 'Welcome display pushed',
+          scannerId: scannerSession.scanner_id,
+          scannerName: scannerSession.scanner_name,
         });
         releaseLock(fastMode ? 900 : 1700);
       } catch (error) {
@@ -521,14 +568,24 @@ export default function ScannerDashboard() {
           title: 'Scan Failed',
           message: error?.message || 'Unable to process QR pass.',
         });
-        addLog({ status: 'invalid', passId, detail: error?.message || 'Processing failed' });
+        addLog({
+          status: 'invalid',
+          passId,
+          detail: error?.message || 'Processing failed',
+          scannerId: scannerSession.scanner_id,
+          scannerName: scannerSession.scanner_name,
+        });
         releaseLock(2800);
       } finally {
         setProcessing(false);
       }
     },
-    [addLog, fastMode, processing, releaseLock]
+    [addLog, fastMode, processing, releaseLock, scannerSession]
   );
+
+  if (!scannerSession) {
+    return <ScannerLogin onLogin={handleScannerLogin} />;
+  }
 
   return (
     <div className="scanner-page relative min-h-dvh overflow-hidden bg-[#05030a] text-white">
@@ -553,6 +610,34 @@ export default function ScannerDashboard() {
             <p className="font-orbitron text-xs text-cyan-100">{formatTime(clock)}</p>
           </div>
         </header>
+
+        <section className="rounded-lg border border-white/10 bg-white/[0.045] p-3 backdrop-blur-xl">
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <p className="font-orbitron text-[10px] uppercase tracking-[0.22em] text-white/38">Logged Scanner</p>
+              <p className="mt-1 truncate text-sm font-semibold text-white">
+                {scannerSession.scanner_id} | {scannerSession.scanner_name}
+              </p>
+            </div>
+            <div className="flex shrink-0 items-center gap-2">
+              <a
+                href="/admin"
+                className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-fuchsia-300/20 bg-fuchsia-500/10 text-fuchsia-100"
+                title="Admin dashboard"
+              >
+                <ShieldCheck className="h-4 w-4" />
+              </a>
+              <button
+                type="button"
+                onClick={handleScannerLogout}
+                className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-red-300/20 bg-red-500/10 text-red-100"
+                title="Logout scanner"
+              >
+                <LogOut className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+        </section>
 
         <motion.section initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}>
           <QRScanner

@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import AdminDashboard from './pages/AdminDashboard';
 import ScannerDashboard from './pages/ScannerDashboard';
 import WelcomeScreen from './pages/WelcomeScreen';
 
@@ -19,6 +20,7 @@ export default function App() {
 
   if (localHttpsUrl) return <LocalHttpsRedirect url={localHttpsUrl} />;
 
+  if (path === '/admin') return <AdminDashboard />;
   if (mobileOnly) return <ScannerDashboard />;
   if (path === '/welcome') return <WelcomeScreen />;
   return <ScannerDashboard />;

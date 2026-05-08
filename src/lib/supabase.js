@@ -21,6 +21,11 @@ const studentColumns =
   'receipt_id,name,department,image_url,is_used,entry_time,section,college_name,whatsapp_number,usn,created_at,updated_at';
 
 let liveDisplayAvailable = null;
+let scanLogScannerColumnsAvailable = null;
+let scannerSessionsAvailable = null;
+
+const scanLogColumns = 'id,receipt_id,scan_time,status,created_at,scanner_id,scanner_name';
+const legacyScanLogColumns = 'id,receipt_id,scan_time,status,created_at';
 
 function requireSupabase() {
   if (!supabase) {
@@ -179,26 +184,63 @@ export async function resetAttendanceToZero() {
   };
 }
 
-export async function logScan(receiptId, status) {
+export async function logScan(receiptId, status, scannerSession = null) {
   if (!supabase) return;
 
-  await supabase.from('scan_logs').insert({
+  const basePayload = {
     receipt_id: String(receiptId || '').trim(),
     scan_time: new Date().toISOString(),
     status,
-  });
+  };
+  const scannerPayload = normalizeScannerPayload(scannerSession);
+
+  if (scannerPayload && scanLogScannerColumnsAvailable !== false) {
+    const { error } = await supabase.from('scan_logs').insert({
+      ...basePayload,
+      ...scannerPayload,
+    });
+
+    if (!error) {
+      scanLogScannerColumnsAvailable = true;
+      return;
+    }
+
+    if (isMissingSchemaFeature(error)) {
+      scanLogScannerColumnsAvailable = false;
+    } else {
+      return;
+    }
+  }
+
+  await supabase.from('scan_logs').insert(basePayload);
 }
 
 export async function fetchScanLogs(limit = 40) {
   requireSupabase();
 
-  const { data, error } = await supabase
+  const withScannerColumns = scanLogScannerColumnsAvailable !== false;
+  let selectedScannerColumns = withScannerColumns;
+  let { data, error } = await supabase
     .from('scan_logs')
-    .select('id,receipt_id,scan_time,status,created_at')
+    .select(withScannerColumns ? scanLogColumns : legacyScanLogColumns)
     .order('scan_time', { ascending: false })
     .limit(limit);
 
+  if (error && withScannerColumns && isMissingSchemaFeature(error)) {
+    scanLogScannerColumnsAvailable = false;
+    selectedScannerColumns = false;
+    const fallbackResult = await supabase
+      .from('scan_logs')
+      .select(legacyScanLogColumns)
+      .order('scan_time', { ascending: false })
+      .limit(limit);
+
+    data = fallbackResult.data;
+    error = fallbackResult.error;
+  }
+
   if (error) throw new Error(error.message || 'Unable to fetch scan logs.');
+  if (selectedScannerColumns) scanLogScannerColumnsAvailable = true;
 
   const receiptIds = [...new Set((data || []).map((log) => log.receipt_id).filter(Boolean))];
   let studentsById = new Map();
@@ -223,6 +265,8 @@ export async function fetchScanLogs(limit = 40) {
       name: student?.name || '',
       detail: student?.section || student?.department || student?.college_name || log.status,
       scanTime: log.scan_time || log.created_at,
+      scannerId: log.scanner_id || '',
+      scannerName: log.scanner_name || '',
     };
   });
 }
@@ -237,6 +281,85 @@ export async function clearScanLogs() {
 
   if (error) throw new Error(error.message || 'Unable to clear scan logs.');
   return true;
+}
+
+export async function upsertScannerSession(scannerSession) {
+  if (!supabase || !scannerSession) return false;
+
+  const now = new Date().toISOString();
+  const payload = {
+    scanner_id: scannerSession.scanner_id,
+    scanner_name: scannerSession.scanner_name,
+    scanner_label: scannerSession.scanner_label || scannerSession.scanner_id,
+    login_at: scannerSession.login_at || now,
+    last_seen_at: now,
+    is_active: true,
+  };
+
+  const { error } = await supabase
+    .from('scanner_sessions')
+    .upsert(payload, { onConflict: 'scanner_id' });
+
+  scannerSessionsAvailable = !error;
+  return !error;
+}
+
+export async function touchScannerSession(scannerSession) {
+  if (!supabase || !scannerSession || scannerSessionsAvailable === false) return false;
+
+  const { error } = await supabase
+    .from('scanner_sessions')
+    .update({ last_seen_at: new Date().toISOString(), is_active: true })
+    .eq('scanner_id', scannerSession.scanner_id);
+
+  if (error) {
+    if (isMissingSchemaFeature(error)) scannerSessionsAvailable = false;
+    return false;
+  }
+
+  scannerSessionsAvailable = true;
+  return true;
+}
+
+export async function signOutScannerSession(scannerSession) {
+  if (!supabase || !scannerSession || scannerSessionsAvailable === false) return false;
+
+  const { error } = await supabase
+    .from('scanner_sessions')
+    .update({ last_seen_at: new Date().toISOString(), is_active: false })
+    .eq('scanner_id', scannerSession.scanner_id);
+
+  if (error) {
+    if (isMissingSchemaFeature(error)) scannerSessionsAvailable = false;
+    return false;
+  }
+
+  scannerSessionsAvailable = true;
+  return true;
+}
+
+export async function fetchScannerSessions() {
+  requireSupabase();
+
+  const { data, error } = await supabase
+    .from('scanner_sessions')
+    .select('scanner_id,scanner_name,scanner_label,login_at,last_seen_at,is_active')
+    .order('scanner_id', { ascending: true });
+
+  if (error) {
+    scannerSessionsAvailable = false;
+    throw new Error(error.message || 'Unable to fetch scanner sessions.');
+  }
+
+  scannerSessionsAvailable = true;
+  return (data || []).map((session) => ({
+    scannerId: session.scanner_id,
+    scannerName: session.scanner_name,
+    scannerLabel: session.scanner_label,
+    loginAt: session.login_at,
+    lastSeenAt: session.last_seen_at,
+    isActive: Boolean(session.is_active),
+  }));
 }
 
 export async function publishLiveDisplay(student) {
@@ -348,6 +471,21 @@ export function subscribeToScanLogs(onChange) {
   return () => supabase.removeChannel(channel);
 }
 
+export function subscribeToScannerSessions(onChange) {
+  if (!supabase) return () => {};
+
+  const channel = supabase
+    .channel(`scanner-sessions-${Date.now()}`)
+    .on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: 'scanner_sessions' },
+      () => onChange?.()
+    )
+    .subscribe();
+
+  return () => supabase.removeChannel(channel);
+}
+
 export function subscribeToSuccessfulScanLogs(onScan) {
   if (!supabase) return () => {};
 
@@ -411,4 +549,28 @@ export function subscribeToWelcomeDisplay(onStudent) {
     if (liveChannel) supabase.removeChannel(liveChannel);
     supabase.removeChannel(studentChannel);
   };
+}
+
+function normalizeScannerPayload(scannerSession) {
+  if (!scannerSession?.scanner_id) return null;
+
+  return {
+    scanner_id: String(scannerSession.scanner_id).trim().toUpperCase(),
+    scanner_name: String(scannerSession.scanner_name || scannerSession.scanner_id).trim(),
+  };
+}
+
+function isMissingSchemaFeature(error) {
+  const message = String(error?.message || '').toLowerCase();
+  const code = String(error?.code || '').toLowerCase();
+
+  return (
+    code === '42703' ||
+    code === '42p01' ||
+    message.includes('schema cache') ||
+    message.includes('scanner_id') ||
+    message.includes('scanner_sessions') ||
+    message.includes('column') ||
+    message.includes('relation')
+  );
 }
