@@ -281,23 +281,44 @@ export default function ScannerDashboard() {
           return;
         }
 
-        if (student.checked_in) {
+        const showDuplicate = async (duplicateRecord) => {
           await logScan(passId, 'duplicate');
-          announceAlreadyCheckedIn(student.name);
+          announceAlreadyCheckedIn(duplicateRecord?.name);
           void notifyScan({
             title: 'DENIED',
-            body: `${student.name} was already scanned.`,
-            tag: `duplicate-${student.receipt_id || passId}`,
+            body: `${duplicateRecord?.name || passId} was already scanned.`,
+            tag: `duplicate-${duplicateRecord?.receipt_id || passId}`,
           });
           if (navigator.vibrate) navigator.vibrate([180, 90, 180, 90, 260]);
           setCounts((previous) => ({ ...previous, duplicate: previous.duplicate + 1 }));
-          setDuplicateStudent(student);
-          addLog({ status: 'duplicate', passId, name: student.name, detail: student.section || 'Denied. Already scanned' });
+          setDuplicateStudent(duplicateRecord || student);
+          addLog({
+            status: 'duplicate',
+            passId,
+            name: duplicateRecord?.name || student.name,
+            detail: duplicateRecord?.section || student.section || 'Denied. Already scanned',
+          });
           releaseLock(4200);
+        };
+
+        if (student.checked_in) {
+          await showDuplicate(student);
           return;
         }
 
-        const checkedInStudent = await markStudentCheckedIn(student.receipt_id);
+        let checkedInStudent = null;
+
+        try {
+          checkedInStudent = await markStudentCheckedIn(student.receipt_id);
+        } catch (markError) {
+          if (markError?.code === 'DUPLICATE_CHECK_IN') {
+            await showDuplicate(markError.student || student);
+            return;
+          }
+
+          throw markError;
+        }
+
         await publishLiveDisplay(checkedInStudent);
         await logScan(passId, 'success');
         playAudio(successSound);

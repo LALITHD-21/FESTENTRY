@@ -18,7 +18,7 @@ export const supabase = isSupabaseConfigured
   : null;
 
 const studentColumns =
-  'receipt_id,name,department,image_url,is_used,entry_time,section,college_name,whatsapp_number';
+  'receipt_id,name,department,image_url,is_used,entry_time,section,college_name,whatsapp_number,updated_at';
 
 let liveDisplayAvailable = null;
 
@@ -76,10 +76,19 @@ export async function markStudentCheckedIn(receiptId) {
       updated_at: now,
     })
     .eq('receipt_id', receiptId)
+    .or('is_used.eq.false,is_used.is.null')
     .select(studentColumns)
-    .single();
+    .maybeSingle();
 
   if (error) throw new Error(error.message || 'Unable to update attendance.');
+  if (!data) {
+    const latestStudent = await fetchStudentByPassId(receiptId);
+    const duplicateError = new Error('Pass was already checked in.');
+    duplicateError.code = 'DUPLICATE_CHECK_IN';
+    duplicateError.student = latestStudent;
+    throw duplicateError;
+  }
+
   return normalizeStudent(data);
 }
 
@@ -307,6 +316,24 @@ export function subscribeToScanLogs(onChange) {
       'postgres_changes',
       { event: '*', schema: 'public', table: 'scan_logs' },
       () => onChange?.()
+    )
+    .subscribe();
+
+  return () => supabase.removeChannel(channel);
+}
+
+export function subscribeToSuccessfulScanLogs(onScan) {
+  if (!supabase) return () => {};
+
+  const channel = supabase
+    .channel(`welcome-success-scan-logs-${Date.now()}`)
+    .on(
+      'postgres_changes',
+      { event: 'INSERT', schema: 'public', table: 'scan_logs' },
+      (payload) => {
+        if (payload.new?.status !== 'success') return;
+        onScan?.(payload.new);
+      }
     )
     .subscribe();
 
