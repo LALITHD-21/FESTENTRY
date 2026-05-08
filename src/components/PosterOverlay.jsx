@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import confetti from 'canvas-confetti';
-import { RotateCcw } from 'lucide-react';
+import { RotateCcw, X } from 'lucide-react';
 import concertPoster from '../assets/concert-poster.png';
 
 const STORAGE_KEY = 'vivan-poster-alignment-v4';
@@ -93,18 +93,24 @@ export default function PosterOverlay({ student }) {
             <motion.div
               key={`${student.name}-${student.updated_at || ''}`}
               className="absolute inset-0"
-              initial={{ opacity: 0, scale: 0.985, filter: 'blur(10px)' }}
-              animate={{ opacity: 1, scale: 1, filter: 'blur(0px)' }}
-              exit={{ opacity: 0, scale: 1.018, filter: 'blur(10px)' }}
-              transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+              initial={{ opacity: 0, scale: 0.978, filter: 'blur(14px) brightness(1.22)' }}
+              animate={{ opacity: 1, scale: 1, filter: 'blur(0px) brightness(1)' }}
+              exit={{ opacity: 0, scale: 1.026, filter: 'blur(16px) brightness(0.74)' }}
+              transition={{ duration: 0.78, ease: [0.16, 1, 0.3, 1] }}
             >
+              <motion.div
+                className="cinematic-welcome-sweep absolute inset-0"
+                initial={{ x: '-130%', opacity: 0 }}
+                animate={{ x: '130%', opacity: [0, 0.9, 0] }}
+                transition={{ duration: 1.15, ease: [0.16, 1, 0.3, 1] }}
+              />
               <motion.div
                 className="poster-photo absolute rounded-full"
                 style={photoSlot}
-                initial={{ opacity: 0, scale: 0.62, y: 16, filter: 'blur(18px)' }}
-                animate={{ opacity: 1, scale: 1, y: 0, filter: 'blur(0px)' }}
-                exit={{ opacity: 0, scale: 1.06, y: -10, filter: 'blur(10px)' }}
-                transition={{ type: 'spring', damping: 14, stiffness: 150 }}
+                initial={{ opacity: 0, scale: 0.48, y: 24, filter: 'blur(20px) saturate(1.6)' }}
+                animate={{ opacity: 1, scale: [0.48, 1.09, 1], y: 0, filter: 'blur(0px) saturate(1.05)' }}
+                exit={{ opacity: 0, scale: 1.08, y: -14, filter: 'blur(12px) saturate(0.8)' }}
+                transition={{ duration: 0.92, ease: [0.16, 1, 0.3, 1], times: [0, 0.72, 1] }}
               >
                 <motion.div
                   className="absolute -inset-[4%] rounded-full bg-[conic-gradient(from_0deg,#ff00e5,#f7c45c,#ffffff,#00f5ff,#ff00e5)] blur-[3px]"
@@ -150,7 +156,7 @@ export default function PosterOverlay({ student }) {
 
       <button
         type="button"
-        className="absolute bottom-3 right-3 z-30 inline-flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-black/30 font-orbitron text-[11px] font-black uppercase tracking-widest text-white/35 opacity-40 backdrop-blur-sm transition hover:border-fuchsia-200/30 hover:text-white/90 hover:opacity-95"
+        className="absolute right-4 top-1/2 z-[90] inline-flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-fuchsia-200/20 bg-black/45 font-orbitron text-sm font-black uppercase tracking-widest text-white/55 shadow-[0_0_24px_rgba(255,0,229,0.18)] backdrop-blur-xl transition hover:border-fuchsia-200/55 hover:bg-fuchsia-500/15 hover:text-white hover:shadow-[0_0_36px_rgba(255,0,229,0.3)]"
         onClick={() => setSettingsOpen((open) => !open)}
         title="Open alignment settings"
       >
@@ -160,35 +166,56 @@ export default function PosterOverlay({ student }) {
       <AnimatePresence>
         {settingsOpen && (
           <motion.div
-            className="absolute bottom-12 right-3 z-30 w-[min(92vw,360px)] rounded-lg border border-fuchsia-300/20 bg-black/75 p-4 text-white shadow-2xl backdrop-blur-xl"
-            initial={{ opacity: 0, y: 18, scale: 0.96 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 18, scale: 0.96 }}
+            className="absolute bottom-0 right-0 top-0 z-[85] w-[min(92vw,390px)] overflow-y-auto border-l border-fuchsia-300/20 bg-black/82 p-5 text-white shadow-[-22px_0_70px_rgba(0,0,0,0.55)] backdrop-blur-2xl"
+            initial={{ opacity: 0, x: 420 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 420 }}
+            transition={{ type: 'spring', damping: 24, stiffness: 190 }}
           >
-            <div className="mb-3 flex items-center justify-between">
+            <div className="mb-5 flex items-center justify-between gap-3">
               <div>
                 <p className="font-orbitron text-xs uppercase tracking-widest text-fuchsia-100">Photo & Name Alignment</p>
-                <p className="text-[11px] text-white/45">Tap A, tune the overlay, saved here</p>
+                <p className="mt-1 text-[11px] text-white/45">Saved live on this display</p>
               </div>
-              <button
-                type="button"
-                className="rounded-lg border border-white/10 bg-white/5 p-2 text-white/65"
-                onClick={() => setAlignment(DEFAULT_ALIGNMENT)}
-                title="Reset alignment"
-              >
-                <RotateCcw className="h-4 w-4" />
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  className="rounded-lg border border-white/10 bg-white/5 p-2 text-white/65 transition hover:text-white"
+                  onClick={() => setAlignment(DEFAULT_ALIGNMENT)}
+                  title="Reset alignment"
+                >
+                  <RotateCcw className="h-4 w-4" />
+                </button>
+                <button
+                  type="button"
+                  className="rounded-lg border border-white/10 bg-white/5 p-2 text-white/65 transition hover:text-white"
+                  onClick={() => setSettingsOpen(false)}
+                  title="Close alignment"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
             </div>
 
-            <AlignmentSlider label="Photo X" value={alignment.photoLeft} min={68.8} max={71.4} step={0.025} onChange={(value) => updateAlignment('photoLeft', value)} />
-            <AlignmentSlider label="Photo Y" value={alignment.photoTop} min={13.8} max={17.2} step={0.025} onChange={(value) => updateAlignment('photoTop', value)} />
-            <AlignmentSlider label="Photo W" value={alignment.photoWidth} min={21.8} max={24.4} step={0.025} onChange={(value) => updateAlignment('photoWidth', value)} />
-            <AlignmentSlider label="Photo H" value={alignment.photoHeight} min={39.2} max={43.2} step={0.025} onChange={(value) => updateAlignment('photoHeight', value)} />
-            <div className="my-3 h-px bg-white/10" />
-            <AlignmentSlider label="Name X" value={alignment.nameLeft} min={65.8} max={68.2} step={0.025} onChange={(value) => updateAlignment('nameLeft', value)} />
-            <AlignmentSlider label="Name Y" value={alignment.nameTop} min={69.2} max={71.4} step={0.025} onChange={(value) => updateAlignment('nameTop', value)} />
-            <AlignmentSlider label="Name W" value={alignment.nameWidth} min={28.2} max={31.6} step={0.025} onChange={(value) => updateAlignment('nameWidth', value)} />
-            <AlignmentSlider label="Name H" value={alignment.nameHeight} min={6.8} max={9.2} step={0.025} onChange={(value) => updateAlignment('nameHeight', value)} />
+            <div className="mb-3 rounded-lg border border-white/10 bg-white/[0.045] p-3">
+              <p className="mb-3 font-orbitron text-[10px] uppercase tracking-widest text-cyan-100">Photo Circle</p>
+              <AlignmentSlider label="Photo X" value={alignment.photoLeft} min={67.8} max={72.4} step={0.025} onChange={(value) => updateAlignment('photoLeft', value)} />
+              <AlignmentSlider label="Photo Y" value={alignment.photoTop} min={12.8} max={18.2} step={0.025} onChange={(value) => updateAlignment('photoTop', value)} />
+              <AlignmentSlider label="Photo W" value={alignment.photoWidth} min={20.8} max={25.4} step={0.025} onChange={(value) => updateAlignment('photoWidth', value)} />
+              <AlignmentSlider label="Photo H" value={alignment.photoHeight} min={38.2} max={44.2} step={0.025} onChange={(value) => updateAlignment('photoHeight', value)} />
+            </div>
+
+            <div className="rounded-lg border border-white/10 bg-white/[0.045] p-3">
+              <p className="mb-3 font-orbitron text-[10px] uppercase tracking-widest text-fuchsia-100">Name Box</p>
+              <AlignmentSlider label="Name X" value={alignment.nameLeft} min={63.4} max={69.6} step={0.025} onChange={(value) => updateAlignment('nameLeft', value)} />
+              <AlignmentSlider label="Name Y" value={alignment.nameTop} min={67.0} max={72.8} step={0.025} onChange={(value) => updateAlignment('nameTop', value)} />
+              <AlignmentSlider label="Name W" value={alignment.nameWidth} min={24.0} max={34.5} step={0.025} onChange={(value) => updateAlignment('nameWidth', value)} />
+              <AlignmentSlider label="Name H" value={alignment.nameHeight} min={6.0} max={12.5} step={0.025} onChange={(value) => updateAlignment('nameHeight', value)} />
+            </div>
+
+            <div className="mt-4 rounded-lg border border-purple-200/10 bg-purple-500/10 p-3 text-[11px] leading-relaxed text-white/55">
+              Use tiny movements. The photo should sit exactly inside the poster circle; the name should stay centered in the black name plate.
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
