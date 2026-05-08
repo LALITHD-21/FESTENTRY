@@ -18,7 +18,7 @@ export const supabase = isSupabaseConfigured
   : null;
 
 const studentColumns =
-  'receipt_id,name,department,image_url,is_used,entry_time,section,college_name,whatsapp_number,updated_at';
+  'receipt_id,name,department,image_url,is_used,entry_time,section,college_name,whatsapp_number,usn,created_at,updated_at';
 
 let liveDisplayAvailable = null;
 
@@ -38,6 +38,7 @@ export function normalizeStudent(row) {
     name: row.name || 'Unknown Student',
     section: row.section || row.department || row.college_name || '',
     department: row.department || '',
+    usn: row.usn || '',
     college_name: row.college_name || '',
     whatsapp_number: row.whatsapp_number || '',
     photo_url: row.image_url || '',
@@ -45,6 +46,7 @@ export function normalizeStudent(row) {
     checked_in: Boolean(row.is_used),
     is_used: Boolean(row.is_used),
     entry_time: row.entry_time || null,
+    created_at: row.created_at || null,
     updated_at: row.updated_at || null,
   };
 }
@@ -104,6 +106,30 @@ export async function getAttendanceStats() {
     checkedIn,
     total,
   };
+}
+
+export async function fetchPassDetails() {
+  requireSupabase();
+
+  const pageSize = 1000;
+  let from = 0;
+  const rows = [];
+
+  while (true) {
+    const { data, error } = await supabase
+      .from('students')
+      .select(studentColumns)
+      .order('created_at', { ascending: true })
+      .range(from, from + pageSize - 1);
+
+    if (error) throw new Error(error.message || 'Unable to fetch total pass details.');
+
+    rows.push(...(data || []));
+    if (!data || data.length < pageSize) break;
+    from += pageSize;
+  }
+
+  return rows.map(normalizeStudent);
 }
 
 async function countStudents({ checkedIn = null, label }) {

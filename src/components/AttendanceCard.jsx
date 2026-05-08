@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
-import { CheckCircle2, RefreshCcw, Ticket, Users } from 'lucide-react';
+import { CheckCircle2, Download, RefreshCcw, Ticket, Users } from 'lucide-react';
 import { getAttendanceStats, isSupabaseConfigured, subscribeToAttendance } from '../lib/supabase';
 
 export default function AttendanceCard({
@@ -10,6 +10,8 @@ export default function AttendanceCard({
   totalScans = 0,
   onResetAttendance,
   resettingAttendance = false,
+  onDownloadAttendance,
+  downloadingAttendance = false,
 }) {
   const [stats, setStats] = useState({ checkedIn: 0, total: 0 });
   const [loading, setLoading] = useState(true);
@@ -61,7 +63,7 @@ export default function AttendanceCard({
 
   return (
     <section className="rounded-lg border border-cyan-300/25 bg-white/[0.055] p-4 shadow-[0_0_45px_rgba(0,245,255,0.12)] backdrop-blur-2xl">
-      <div className="mb-4 flex items-center justify-between">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <Users className="h-5 w-5 text-cyan-200" />
           <span className="font-orbitron text-xs uppercase tracking-[0.25em] text-cyan-100">Attendance</span>
@@ -70,6 +72,17 @@ export default function AttendanceCard({
           <span className="rounded-full border border-emerald-300/20 bg-emerald-400/10 px-3 py-1 text-[10px] uppercase tracking-widest text-emerald-200">
             Live
           </span>
+          {onDownloadAttendance && (
+            <button
+              type="button"
+              onClick={onDownloadAttendance}
+              disabled={downloadingAttendance}
+              className="inline-flex min-h-8 items-center gap-1.5 rounded-full border border-cyan-300/25 bg-cyan-500/10 px-3 py-1 font-orbitron text-[10px] uppercase tracking-widest text-cyan-100 transition hover:bg-cyan-500/20 disabled:cursor-wait disabled:opacity-60"
+            >
+              <Download className={`h-3.5 w-3.5 ${downloadingAttendance ? 'animate-pulse' : ''}`} />
+              {downloadingAttendance ? 'PDF...' : 'Pass PDF'}
+            </button>
+          )}
           {onResetAttendance && (
             <button
               type="button"

@@ -24,9 +24,11 @@ import SuccessToast from '../components/SuccessToast';
 import scannerSound from '../assets/scanner.mp3';
 import successSound from '../assets/success.mp3';
 import warningSound from '../assets/warning.mp3';
+import { downloadPassListPdf } from '../lib/attendancePdf';
 import { announceAlreadyCheckedIn, announcePermitted, notifyScan } from '../lib/speech';
 import {
   clearScanLogs,
+  fetchPassDetails,
   fetchStudentByPassId,
   fetchScanLogs,
   isSupabaseConfigured,
@@ -83,6 +85,7 @@ export default function ScannerDashboard() {
   const [lastSuccessAt, setLastSuccessAt] = useState('');
   const [resettingAttendance, setResettingAttendance] = useState(false);
   const [clearingLogs, setClearingLogs] = useState(false);
+  const [downloadingAttendance, setDownloadingAttendance] = useState(false);
   const [fastMode, setFastMode] = useState(() => window.localStorage.getItem('vivan-fast-scan-mode') === 'true');
   const [wakeLockEnabled, setWakeLockEnabled] = useState(() => window.localStorage.getItem('vivan-keep-awake') === 'true');
   const [wakeLockActive, setWakeLockActive] = useState(false);
@@ -315,6 +318,43 @@ export default function ScannerDashboard() {
       setResettingAttendance(false);
     }
   }, [resettingAttendance, unlockNow]);
+
+  const downloadAttendanceDetails = useCallback(async () => {
+    if (downloadingAttendance) return;
+
+    setDownloadingAttendance(true);
+
+    try {
+      if (!isSupabaseConfigured) {
+        throw new Error('Supabase is not configured.');
+      }
+
+      const students = await fetchPassDetails();
+      if (students.length === 0) {
+        setToast({
+          type: 'info',
+          title: 'No Passes Found',
+          message: 'No pass records were found in Supabase.',
+        });
+        return;
+      }
+
+      downloadPassListPdf(students);
+      setToast({
+        type: 'success',
+        title: 'Total Pass PDF Ready',
+        message: `${students.length} issued ${students.length === 1 ? 'pass' : 'passes'} exported from Supabase.`,
+      });
+    } catch (error) {
+      setToast({
+        type: 'invalid',
+        title: 'PDF Export Failed',
+        message: error?.message || 'Unable to download total pass details.',
+      });
+    } finally {
+      setDownloadingAttendance(false);
+    }
+  }, [downloadingAttendance]);
 
   const quickSyncWelcome = useCallback(async () => {
     if (!lastSuccessStudent) {
@@ -557,6 +597,8 @@ export default function ScannerDashboard() {
           duplicateScans={stats.duplicate}
           onResetAttendance={resetAttendanceCount}
           resettingAttendance={resettingAttendance}
+          onDownloadAttendance={downloadAttendanceDetails}
+          downloadingAttendance={downloadingAttendance}
         />
 
         <ScanLogs logs={logs} />
