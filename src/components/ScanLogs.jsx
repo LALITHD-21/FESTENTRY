@@ -37,7 +37,7 @@ export default function ScanLogs({ logs }) {
       if (!matchesFilter) return false;
       if (!needle) return true;
 
-      return [log.name, log.passId, log.detail, log.status, log.scannerId, log.scannerName]
+      return [log.name, log.passId, log.detail, log.status]
         .filter(Boolean)
         .some((value) => String(value).toLowerCase().includes(needle));
     });
@@ -155,11 +155,6 @@ export default function ScanLogs({ logs }) {
                       <span className="shrink-0 text-[10px] text-white/35">{log.time || formatLogTime(log.scanTime)}</span>
                     </div>
                     <p className="truncate text-xs text-white/45">{log.detail}</p>
-                    {(log.scannerId || log.scannerName) && (
-                      <p className="mt-0.5 truncate font-mono text-[10px] uppercase tracking-wide text-cyan-100/45">
-                        {log.scannerId || 'SCAN'} {log.scannerName ? `| ${log.scannerName}` : ''}
-                      </p>
-                    )}
                   </div>
                   <span className={`font-orbitron text-[10px] uppercase tracking-wider ${meta.text}`}>{meta.label}</span>
                 </motion.div>
