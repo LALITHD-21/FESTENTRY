@@ -560,6 +560,14 @@ export default function ScannerDashboard() {
         />
 
         <ScanLogs logs={logs} />
+
+        <footer className="pb-6 pt-2 text-center">
+          <div className="mx-auto inline-flex items-center justify-center rounded-full border border-fuchsia-300/18 bg-black/35 px-4 py-2 shadow-[0_0_26px_rgba(255,0,229,0.12)] backdrop-blur-xl">
+            <span className="font-orbitron text-[10px] font-bold uppercase tracking-[0.28em] text-white/55">
+              MADE BY VAISIRI STUDENTS (TM)
+            </span>
+          </div>
+        </footer>
       </main>
 
       <DuplicateModal open={Boolean(duplicateStudent)} student={duplicateStudent} onClose={() => setDuplicateStudent(null)} />
