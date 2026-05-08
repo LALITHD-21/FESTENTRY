@@ -33,7 +33,6 @@ import { announceAlreadyCheckedIn, announcePermitted, notifyScan } from '../lib/
 import {
   clearScanLogs,
   fetchPassDetails,
-  fetchScannerResetAt,
   fetchStudentByPassId,
   fetchScanLogs,
   isSupabaseConfigured,
@@ -43,7 +42,6 @@ import {
   quickSyncStudentToDisplay,
   resetAttendanceToZero,
   signOutScannerSession,
-  subscribeToScannerControl,
   subscribeToScanLogs,
   touchScannerSession,
   upsertScannerSession,
@@ -258,40 +256,6 @@ export default function ScannerDashboard() {
     unlockNow();
     setDuplicateStudent(null);
   }, [scannerSession, unlockNow]);
-
-  const enforceMemberReset = useCallback(async () => {
-    if (!scannerSession) return;
-
-    const resetAt = await fetchScannerResetAt();
-    if (!resetAt) return;
-
-    const resetTime = new Date(resetAt).getTime();
-    const loginTime = new Date(scannerSession.login_at || 0).getTime();
-    if (Number.isNaN(resetTime) || Number.isNaN(loginTime) || resetTime <= loginTime) return;
-
-    clearScannerSession();
-    setScannerSession(null);
-    unlockNow();
-    setDuplicateStudent(null);
-    setToast({
-      type: 'info',
-      title: 'Scanner Reset',
-      message: 'Admin reset all scanner members. Login again with your current name.',
-    });
-  }, [scannerSession, unlockNow]);
-
-  useEffect(() => {
-    if (!scannerSession) return undefined;
-
-    enforceMemberReset();
-    const unsubscribe = subscribeToScannerControl(enforceMemberReset);
-    const interval = window.setInterval(enforceMemberReset, 10000);
-
-    return () => {
-      unsubscribe();
-      window.clearInterval(interval);
-    };
-  }, [enforceMemberReset, scannerSession]);
 
   const startFreshScan = useCallback(() => {
     unlockNow();
