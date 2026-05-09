@@ -176,13 +176,13 @@ export default function WelcomeScreen() {
       <PosterOverlay student={student} />
 
       <motion.div
-        className="pointer-events-none absolute right-5 top-5 z-20 flex items-center gap-2 rounded-lg border border-white/10 bg-black/45 px-3 py-2 text-[10px] uppercase tracking-widest text-white/70 backdrop-blur-xl"
+        className="pointer-events-none absolute right-5 top-5 z-20 flex h-10 w-10 items-center justify-center rounded-lg border border-white/10 bg-black/50 text-white/70 backdrop-blur-xl"
         initial={{ opacity: 0, x: 16 }}
         animate={{ opacity: 1, x: 0 }}
+        title={status}
       >
-        <span className={`h-2 w-2 rounded-full ${status.includes('Queue') ? 'bg-emerald-400' : 'bg-amber-300'}`} />
-        <Wifi className="h-3.5 w-3.5" />
-        {status}
+        <span className={`absolute right-2 top-2 h-2 w-2 rounded-full ${status.includes('Queue') ? 'bg-emerald-400' : 'bg-amber-300'}`} />
+        <Wifi className="h-4 w-4" />
       </motion.div>
 
       <AnimatePresence>

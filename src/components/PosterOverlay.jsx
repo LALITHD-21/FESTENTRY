@@ -272,7 +272,7 @@ export default function PosterOverlay({ student }) {
 
       <button
         type="button"
-        className="absolute right-4 top-1/2 z-[90] inline-flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-fuchsia-200/20 bg-black/45 font-orbitron text-sm font-black uppercase tracking-widest text-white/55 shadow-[0_0_24px_rgba(255,0,229,0.18)] backdrop-blur-xl transition hover:border-fuchsia-200/55 hover:bg-fuchsia-500/15 hover:text-white hover:shadow-[0_0_36px_rgba(255,0,229,0.3)]"
+        className="absolute right-4 top-1/2 z-[90] inline-flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-fuchsia-200/35 bg-black/70 font-orbitron text-sm font-black uppercase tracking-widest text-white/78 shadow-[0_0_28px_rgba(255,0,229,0.22)] backdrop-blur-xl transition hover:border-fuchsia-200/60 hover:bg-fuchsia-500/18 hover:text-white hover:shadow-[0_0_36px_rgba(255,0,229,0.3)]"
         onClick={() => setSettingsOpen((open) => !open)}
         title="Open alignment settings"
       >
