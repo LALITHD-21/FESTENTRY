@@ -255,17 +255,7 @@ export default function PosterOverlay({ student }) {
               </motion.div>
             </motion.div>
           ) : (
-            <motion.div
-              key="idle"
-              className="absolute inset-0 flex items-end justify-center pb-[3%]"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-            >
-              <div className="rounded-lg border border-fuchsia-300/25 bg-black/45 px-5 py-3 text-center backdrop-blur-xl">
-                <p className="font-orbitron text-xs uppercase tracking-[0.35em] text-fuchsia-100">Awaiting first check-in</p>
-              </div>
-            </motion.div>
+            <motion.div key="idle" className="absolute inset-0" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} />
           )}
         </AnimatePresence>
       </motion.div>
