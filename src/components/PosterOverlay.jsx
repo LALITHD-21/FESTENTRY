@@ -4,17 +4,17 @@ import confetti from 'canvas-confetti';
 import { RotateCcw, X } from 'lucide-react';
 import concertPoster from '../assets/concert-poster.png';
 
-const STORAGE_KEY = 'vivan-poster-alignment-v4';
+const STORAGE_KEY = 'vivan-poster-alignment-v5';
 
 const DEFAULT_ALIGNMENT = {
-  photoLeft: 70.05,
-  photoTop: 15.35,
-  photoWidth: 23.05,
-  photoHeight: 40.98,
-  nameLeft: 66.9,
-  nameTop: 70.35,
-  nameWidth: 29.9,
-  nameHeight: 8.05,
+  photoLeft: 72.62,
+  photoTop: 13.45,
+  photoWidth: 21.86,
+  photoHeight: 38.85,
+  nameLeft: 67.3,
+  nameTop: 70.9,
+  nameWidth: 29.3,
+  nameHeight: 8.9,
 };
 
 const SPARKLE_POINTS = [
@@ -315,18 +315,18 @@ export default function PosterOverlay({ student }) {
 
             <div className="mb-3 rounded-lg border border-white/10 bg-white/[0.045] p-3">
               <p className="mb-3 font-orbitron text-[10px] uppercase tracking-widest text-cyan-100">Photo Circle</p>
-              <AlignmentSlider label="Photo X" value={alignment.photoLeft} min={67.8} max={72.4} step={0.025} onChange={(value) => updateAlignment('photoLeft', value)} />
-              <AlignmentSlider label="Photo Y" value={alignment.photoTop} min={12.8} max={18.2} step={0.025} onChange={(value) => updateAlignment('photoTop', value)} />
-              <AlignmentSlider label="Photo W" value={alignment.photoWidth} min={20.8} max={25.4} step={0.025} onChange={(value) => updateAlignment('photoWidth', value)} />
-              <AlignmentSlider label="Photo H" value={alignment.photoHeight} min={38.2} max={44.2} step={0.025} onChange={(value) => updateAlignment('photoHeight', value)} />
+              <AlignmentSlider label="Photo X" value={alignment.photoLeft} min={70.8} max={74.5} step={0.025} onChange={(value) => updateAlignment('photoLeft', value)} />
+              <AlignmentSlider label="Photo Y" value={alignment.photoTop} min={11.6} max={16.2} step={0.025} onChange={(value) => updateAlignment('photoTop', value)} />
+              <AlignmentSlider label="Photo W" value={alignment.photoWidth} min={20.2} max={23.6} step={0.025} onChange={(value) => updateAlignment('photoWidth', value)} />
+              <AlignmentSlider label="Photo H" value={alignment.photoHeight} min={36.6} max={41.2} step={0.025} onChange={(value) => updateAlignment('photoHeight', value)} />
             </div>
 
             <div className="rounded-lg border border-white/10 bg-white/[0.045] p-3">
               <p className="mb-3 font-orbitron text-[10px] uppercase tracking-widest text-fuchsia-100">Name Box</p>
-              <AlignmentSlider label="Name X" value={alignment.nameLeft} min={63.4} max={69.6} step={0.025} onChange={(value) => updateAlignment('nameLeft', value)} />
-              <AlignmentSlider label="Name Y" value={alignment.nameTop} min={67.0} max={72.8} step={0.025} onChange={(value) => updateAlignment('nameTop', value)} />
-              <AlignmentSlider label="Name W" value={alignment.nameWidth} min={24.0} max={34.5} step={0.025} onChange={(value) => updateAlignment('nameWidth', value)} />
-              <AlignmentSlider label="Name H" value={alignment.nameHeight} min={6.0} max={12.5} step={0.025} onChange={(value) => updateAlignment('nameHeight', value)} />
+              <AlignmentSlider label="Name X" value={alignment.nameLeft} min={65.2} max={69.0} step={0.025} onChange={(value) => updateAlignment('nameLeft', value)} />
+              <AlignmentSlider label="Name Y" value={alignment.nameTop} min={68.4} max={74.8} step={0.025} onChange={(value) => updateAlignment('nameTop', value)} />
+              <AlignmentSlider label="Name W" value={alignment.nameWidth} min={26.4} max={31.8} step={0.025} onChange={(value) => updateAlignment('nameWidth', value)} />
+              <AlignmentSlider label="Name H" value={alignment.nameHeight} min={6.4} max={11.2} step={0.025} onChange={(value) => updateAlignment('nameHeight', value)} />
             </div>
 
             <div className="mt-4 rounded-lg border border-purple-200/10 bg-purple-500/10 p-3 text-[11px] leading-relaxed text-white/55">
