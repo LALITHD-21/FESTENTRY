@@ -201,11 +201,12 @@ export default function WelcomeScreen() {
 
       <button
         type="button"
-        className="absolute bottom-5 left-5 z-30 inline-flex items-center gap-2 rounded-lg border border-cyan-300/20 bg-black/55 px-3 py-2 font-orbitron text-[10px] uppercase tracking-widest text-cyan-100/80 backdrop-blur-xl transition hover:border-cyan-200/45 hover:text-cyan-50"
+        className="absolute bottom-5 left-5 z-30 inline-flex h-10 w-10 items-center justify-center rounded-lg border border-cyan-300/20 bg-black/55 text-cyan-100/80 backdrop-blur-xl transition hover:border-cyan-200/45 hover:text-cyan-50"
         onClick={pullLatestStudent}
+        aria-label="Quick sync welcome display"
+        title="Quick Sync"
       >
         <RefreshCcw className="h-4 w-4" />
-        Quick Sync
       </button>
 
       <button
