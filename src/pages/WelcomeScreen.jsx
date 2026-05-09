@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Film, Radio, RefreshCcw, Volume2, Wifi } from 'lucide-react';
+import { Film, RefreshCcw, Volume2, Wifi } from 'lucide-react';
 import PosterOverlay from '../components/PosterOverlay';
 import { announceWelcomeBeautiful, primeWelcomeVoice, stopWelcomeVoice } from '../lib/speech';
 import {
@@ -174,15 +174,6 @@ export default function WelcomeScreen() {
   return (
     <div className="relative h-screen w-screen overflow-hidden bg-black">
       <PosterOverlay student={student} />
-
-      <motion.div
-        className="pointer-events-none absolute left-5 top-5 z-20 flex items-center gap-2 rounded-lg border border-fuchsia-300/25 bg-black/45 px-3 py-2 text-[10px] uppercase tracking-widest text-fuchsia-100/85 backdrop-blur-xl"
-        initial={{ opacity: 0, x: -16 }}
-        animate={{ opacity: 1, x: 0 }}
-      >
-        <Radio className="h-3.5 w-3.5" />
-        Welcome Display
-      </motion.div>
 
       <motion.div
         className="pointer-events-none absolute right-5 top-5 z-20 flex items-center gap-2 rounded-lg border border-white/10 bg-black/45 px-3 py-2 text-[10px] uppercase tracking-widest text-white/70 backdrop-blur-xl"
